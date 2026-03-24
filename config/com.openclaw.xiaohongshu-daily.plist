@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.openclaw.xiaohongshu-daily</string>
+    
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/python3</string>
+        <string>/Users/yangbowen/.openclaw/workspace/scripts/xiaohongshu_daily_task.py</string>
+    </array>
+    
+    <key>WorkingDirectory</key>
+    <string>/Users/yangbowen/.openclaw/workspace/scripts</string>
+    
+    <key>StandardOutPath</key>
+    <string>/tmp/openclaw/xiaohongshu-daily.log</string>
+    
+    <key>StandardErrorPath</key>
+    <string>/tmp/openclaw/xiaohongshu-daily-error.log</string>
+    
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>6</integer>
+        <key>Minute</key>
+        <integer>30</integer>
+    </dict>
+    
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>
