@@ -114,7 +114,7 @@ AI 会如何改变你的工作？
     ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     
     log("⏳ 等待 MCP 服务器启动...")
-    subprocess.run(['sleep', '30'], capture_output=True)
+    subprocess.run(['sleep', '45'], capture_output=True)
     
     # 4. 检查登录状态（重试 3 次）
     log("检查登录状态...")
@@ -135,7 +135,11 @@ AI 会如何改变你的工作？
     if not logged_in:
         log(f"❌ 登录失败：{result.stdout}")
         log("⚠️ 但保持 MCP 服务器运行，尝试直接发布...")
-        # 不关闭服务器，继续尝试发布
+    
+    # 5. 登录成功后再等 15 秒，确保浏览器完全就绪
+    if logged_in:
+        log("⏳ 等待浏览器完全就绪...")
+        subprocess.run(['sleep', '15'], capture_output=True)
     
     # 5. 发布笔记
     log("\n发布笔记...")
