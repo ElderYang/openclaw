@@ -26,6 +26,12 @@
 
 ## 每次 Heartbeat 检查清单
 
+### 🧠 Self-Improving（主动反思）⭐ 新增
+- [ ] 检查 `~/self-improving/corrections.md` - 有新纠正吗？
+- [ ] 检查 `~/self-improving/memory.md` - 有需要提升的模式吗？
+- [ ] 更新 `~/self-improving/heartbeat-state.md` - 记录本次检查
+- [ ] 事件触发反思 - 有严重错误/重复问题/用户要求吗？
+
 ### 主动行为
 - [ ] 检查 `notes/areas/proactive-tracker.md` - 有待执行的主动行为？
 - [ ] 模式检查 - 用户是否重复请求某项任务（3+ 次触发自动化）
