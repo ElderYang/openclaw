@@ -25,28 +25,44 @@ def classify_role(message: str) -> str:
     """根据消息语义判断角色（不是机械匹配关键词）"""
     message_lower = message.lower()
     
-    # 先判断是否是纯系统配置问题（优先级最高）
-    # 注意：只判断与小红书/股市无关的系统问题
-    pure_system_keywords = ['git', 'github', '标签显示', '角色标签', '分类器', '配置持久化', 'commit', 'push']
+    # 优先级 1：判断是否是元对话（关于系统/分类器/标签的讨论）
+    # 这类消息是在讨论系统，不是实际问领域问题
+    meta_keywords = ['语义识别', '标签.*问题', '分类器', '判断.*错', '应该用.*回复', 
+                     '你说的.*不对', '理解.*错', '又错了', '还是.*问题']
+    is_meta_conversation = any(kw in message_lower for kw in meta_keywords)
+    
+    # 如果是元对话（讨论系统），返回个人助手
+    if is_meta_conversation:
+        return '个人助手'
+    
+    # 优先级 2：判断是否是纯系统配置问题
+    pure_system_keywords = ['git', 'github', '配置持久化', 'commit', 'push', 
+                            '标签显示', '角色标签']
     is_pure_system = any(kw in message_lower for kw in pure_system_keywords)
     
-    # 如果是纯系统问题，直接返回个人助手
     if is_pure_system:
         return '个人助手'
     
-    # 再检查小红书助手（创作/发布/运营相关）
+    # 优先级 3：判断小红书助手（创作/发布/运营相关）
     xhs_keywords = ['发布', '创作', '怎么写', '怎么发', '笔记内容', '标题', '封面', '爆款', 
                     '小红书', 'xhs', 'redbook', '没自动发', '笔记']
     xhs_score = sum(1 for kw in xhs_keywords if kw in message_lower)
     
-    # 检查股市分析师（分析/数据相关）
+    # 核心关键词权重更高
+    if '小红书' in message_lower or 'xhs' in message_lower or 'redbook' in message_lower:
+        xhs_score += 2
+    
+    # 优先级 4：判断股市分析师（分析/数据相关）
     stock_keywords = ['分析', '怎么样', '涨跌', '走势', '持仓', '复盘', '晨报', '股市', '股票', 'a 股']
     stock_score = sum(1 for kw in stock_keywords if kw in message_lower)
     
+    if '股市' in message_lower or '股票' in message_lower or 'a 股' in message_lower:
+        stock_score += 2
+    
     # 判断：小红书相关 > 股市相关 > 个人助手
-    if xhs_score >= 2:  # 2 个及以上小红书关键词
+    if xhs_score >= 3:
         return '小红书助手'
-    if stock_score >= 2:  # 2 个及以上股市关键词
+    if stock_score >= 3:
         return '股市分析师'
     
     # 默认返回个人助手
