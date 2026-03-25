@@ -22,20 +22,35 @@ ROLE_KEYWORDS = {
 }
 
 def classify_role(message: str) -> str:
-    """根据消息内容判断角色"""
+    """根据消息语义判断角色（不是机械匹配关键词）"""
     message_lower = message.lower()
     
-    # 先检查小红书助手和股市分析师（优先级高）
-    xhs_score = sum(1 for kw in ROLE_KEYWORDS['小红书助手'] if kw.lower() in message_lower)
-    stock_score = sum(1 for kw in ROLE_KEYWORDS['股市分析师'] if kw.lower() in message_lower)
+    # 先判断是否是系统问题/配置问题/反馈（优先级最高）
+    system_keywords = ['标签', '乱了', '错了', '问题', '配置', '系统', '故障', 'bug', 
+                       '没发', '没显示', '失败', '错误', '为什么', '怎么回事']
+    is_system_issue = any(kw in message_lower for kw in system_keywords)
     
-    # 如果匹配到小红书或股市，返回对应角色
-    if xhs_score > 0:
+    # 如果是系统问题，直接返回个人助手
+    if is_system_issue:
+        return '个人助手'
+    
+    # 再检查小红书助手（创作/发布相关）
+    xhs_keywords = ['发布', '创作', '怎么写', '怎么发', '笔记内容', '标题', '封面', '爆款']
+    xhs_score = sum(1 for kw in xhs_keywords if kw in message_lower)
+    xhs_score += sum(1 for kw in ROLE_KEYWORDS['小红书助手'] if kw.lower() in message_lower)
+    
+    # 检查股市分析师（分析/数据相关）
+    stock_keywords = ['分析', '怎么样', '涨跌', '走势', '持仓', '复盘', '晨报']
+    stock_score = sum(1 for kw in stock_keywords if kw in message_lower)
+    stock_score += sum(1 for kw in ROLE_KEYWORDS['股市分析师'] if kw.lower() in message_lower)
+    
+    # 判断
+    if xhs_score > stock_score and xhs_score > 2:
         return '小红书助手'
-    if stock_score > 0:
+    if stock_score > xhs_score and stock_score > 2:
         return '股市分析师'
     
-    # 否则默认返回个人助手
+    # 默认返回个人助手
     return '个人助手'
 
 def get_soul_file(role: str) -> str:
