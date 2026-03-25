@@ -89,51 +89,36 @@
   - 周日：提醒预约下周商务出行车票
   - 铁路提前 15 天放票，建议提前预约
 
-## 2. 每日小结（每天 22:00 执行）
+## 2. 每日自省（每天 22:00 执行）⭐ 已合并
 - **时间**：每天 22:00（Asia/Shanghai）
 - **内容**：
-  - 记录当天关键学习 (1-2 条)
-  - 检查是否有重复问题
-  - 简要统计当天问题数
-  - 更新 `memory/learnings.md`
-- **脚本**：`scripts/daily_summary.py`
-- **输出**：`memory/daily-summary-YYYYMMDD.md`
+  - 检查 `~/self-improving/corrections.md` - 有新纠正吗？
+  - 检查 `~/self-improving/memory.md` - 有需要提升的模式吗？
+  - 更新 `~/self-improving/heartbeat-state.md` - 记录本次检查
+  - 扫描当天日志错误
+  - 生成反思建议
+- **脚本**：`scripts/daily_self_reflection.py`
+- **输出**：`~/self-improving/corrections.md` + `~/self-improving/heartbeat-state.md`
 - **执行方式**：Gateway 心跳检查时自动执行（检查当前时间，如果是 22:00-22:15 之间则执行）
 - **触发条件**：
   - 每天自动执行
-  - 有学习/问题时记录，无则跳过
+  - 有纠正/错误时记录，无则跳过
 
-## 2-1. Self-Improving 整合（每周六 19:00 执行）
-- **时间**：每周六 19:00（Asia/Shanghai）
-- **内容**：
-  - 读取 `~/self-improving/corrections.md`
-  - 筛选本周新增纠正记录
-  - 整合到 `memory/learnings.md`
-  - 记录整合日志
-- **脚本**：`scripts/weekly_integration.py`
-- **输出**：
-  - 学习条目：`memory/learnings.md`
-  - 整合日志：`memory/integration-log.md`
-- **执行方式**：Gateway 心跳检查时自动执行（检查当前时间，如果是周六 19:00-19:15 之间则执行）
-- **触发条件**：
-  - 每周自动执行（在每周深度反思前）
-  - 有新纠正时整合，无则跳过
-
-## 3. 每周深度反思（每周六 20:00 执行）⭐ 已修正
+## 3. 每周深度反思（每周六 20:00 执行）⭐ 已合并
 - **时间**：每周六 20:00（Asia/Shanghai）
 - **内容**：
-  - 回顾本周所有问题和解决方案
+  - 回顾本周 `~/self-improving/corrections.md` 所有纠正
   - 统计问题分类（数据准确性/配置/API/技能/性能）
   - 分析趋势和模式
-  - 更新 `memory/learnings.md`（系统化整理）
+  - 更新 `~/self-improving/memory.md`（系统化整理）
   - 生成深度反思报告
   - 制定下周改进计划
-- **脚本**：`scripts/weekly_reflection.py`
-- **输出**：`memory/weekly-reflection-YYYYMMDD.md`
+- **脚本**：`scripts/weekly_reflection.py`（合并了 weekly_integration.py）
+- **输出**：`~/self-improving/memory.md` + `~/self-improving/weekly-reflection-YYYYMMDD.md`
 - **执行方式**：Gateway 心跳检查时自动执行（检查当前时间，如果是周六 20:00-20:30 之间则执行）
 - **触发条件**：
   - 每周自动执行
-  - 结合每日小结 + Self-Improving 整合生成深度报告
+  - 基于 Self-Improving 系统数据生成报告
 
 ## 3-1. 事件触发反思（即时执行）
 - **触发条件**（满足任一即触发）：
