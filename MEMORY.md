@@ -1,0 +1,209 @@
+# MEMORY.md - 长期记忆
+
+*最后更新：2026 年 3 月 18 日 13:05*
+
+---
+
+## 👤 用户基本信息
+
+- **时区**：Asia/Shanghai（中国大陆）
+- **语言偏好**：中文
+- **使用渠道**：飞书（WebChat）
+- **网络环境**：中国大陆
+
+---
+
+## 🎙️ 语音消息处理流程（重要！2026-03-18 确立）
+
+### 核心流程（已验证可用）
+```
+用户语音（飞书）
+  ↓
+[1] STT 转译 - Faster Whisper 本地服务（端口 18790）
+  ↓
+[2] AI 处理 - Bailian qwen3.5-plus
+  ↓
+[3] TTS 生成 - macOS 系统 TTS（say -v Ting-Ting）
+  ↓
+[4] 飞书发送 - file_type=opus + msg_type=audio
+```
+
+### 关键配置（不要改！）
+1. **STT 服务**：
+   - 启动：`cd ~/workspace/voice-input && nohup python3 transcribe-server.py > /tmp/openclaw/transcribe.log 2>&1 &`
+   - 端口：18790
+   - 模型：Whisper Medium（int8）
+
+2. **TTS 生成**：
+   - 命令：`say -v Ting-Ting -o output.aiff "中文文本"`
+   - 转换：`ffmpeg -i output.aiff -acodec libmp3lame -ab 64k output.mp3`
+   - 语音：Ting-Ting（中文女声）
+
+3. **飞书发送**：
+   - `file_type='opus'`（关键！不要用 audio/voice/stream）
+   - `msg_type='audio'`（真正的语音消息）
+   - `content` 必须是 JSON 字符串
+
+### 文档位置
+- **完整流程文档**：`~/workspace/docs/voice-message-flow-complete.md`
+- **快速参考卡片**：`~/workspace/docs/voice-quick-reference.md`
+- **启动脚本**：`~/workspace/scripts/start-voice-services.sh`
+- **测试脚本**：`~/workspace/scripts/test-voice-flow.py`
+
+### API Keys
+- 飞书 App ID：`cli_a923ffd1e2f95cb2`
+- 飞书 App Secret：`wbUuXVa7aIy96JDguHt3gdvlT4Kpp6aV`
+- 飞书 User ID：`ou_a040d98b29a237916317887806d655de`
+- 百炼 API：`sk-ce9e5828374948b0a5deb0e4d2ab88e5`
+
+### 常见错误码
+- `234001`：file_type 错误 → 改用 `opus`
+- `230055`：文件类型不匹配 → 确保 `opus` + `audio`
+- `52`：STT 服务无响应 → 重启服务
+
+---
+
+## 📈 投资持仓信息
+
+### ETF 持仓（3 只）
+| 名称 | 代码 | 类型 | 备注 |
+|------|------|------|------|
+| 科创 50ETF | 588000 | 科创板指数 | 硬科技代表 |
+| 半导体设备 ETF | 159516 | 半导体行业 | 设备国产替代 |
+| 电网设备 ETF | 159326 | 电力设备行业 | 电力设备出海 |
+
+### 个股持仓（5 只）
+| 名称 | 代码 | 行业 | 核心逻辑 |
+|------|------|------|----------|
+| 三花智控 | 002050 | 汽车零部件 | 热管理龙头 |
+| 兆易创新 | 603986 | 半导体 | 存储芯片龙头 |
+| 蓝色光标 | 300058 | 传媒/营销 | AI 营销概念 |
+| 长电科技 | 600584 | 半导体 | 芯片封测龙头 |
+| 润泽科技 | 300442 | 数据中心 | AI 算力需求 |
+
+---
+
+## ⏰ 定时任务配置
+
+### 已配置的定时任务
+| 任务 | 执行时间 | 脚本 | 状态 |
+|------|----------|------|------|
+| 🌤️ 天气预报 | 每天 7:00 | `daily_weather_task.py` | ✅ 已配置 |
+| 🚄 火车票提醒 | 周三/日 9:00 | `train_ticket_reminder.py` | ✅ 已配置 |
+| 📊 股市早报 | 每天 7:30 | `stock_review_v21.py` | ✅ 已配置 |
+| 📈 A 股复盘 | 工作日 17:30 | `stock_review_v21.py` | ✅ 已配置 |
+
+### 定时任务配置文件
+- 天气：`~/Library/LaunchAgents/com.openclaw.weather.plist`
+- 火车票：`~/Library/LaunchAgents/com.openclaw.train-reminder.plist`
+- 股市：`~/Library/LaunchAgents/com.openclaw.stock-review.plist`
+
+---
+
+## 📊 股市报告配置
+
+### 数据源优先级（v21.3 - 2026-03-19 最终版）
+1. **QVeris 同花顺** - 实时数据（持仓个股✅、美股指数✅）
+2. **mx-stocks-screener** - 东方财富官方（行业板块✅、龙虎榜✅）⭐新增
+3. **Tushare** - 指数数据✅、美股数据✅、融资融券✅、主力资金✅
+4. **东方财富 API** - 北向资金✅、涨停板✅（⚠️ 行业板块网络限制）
+5. **AkShare** - 备用数据源（⚠️ 网络不稳定）
+6. **Tavily 搜索** - 隔夜重要消息✅
+
+### 已修复问题（2026-03-19）
+- ✅ 模板导入问题（添加 sys.path）
+- ✅ launchd 配置安装（每天 7:30/17:30 自动执行）
+- ✅ 飞书卡片消息格式（interactive 类型）
+- ✅ 隔夜重要消息模块（Tavily API）
+- ✅ 指数数据源优化（Tushare+ 东方财富）
+- ✅ 持仓 ETF 支持（8/8 成功，修复市场代码判断）
+- ✅ mx-stocks-screener 集成（行业板块 0.6 秒，龙虎榜 1.2 秒）
+- ✅ 缓存策略实施（各模块按 TTL 缓存）
+- ✅ 执行时间优化（23.9-60.9 秒，<120 秒目标）
+
+### ⚠️ 待解决问题
+- **行业板块数据** - 东方财富 API 在中国大陆网络下被限制
+  - 临时方案：昨日缓存 / 涨停股推断
+  - 长期方案：配置 VPN 代理（Let's VPN 端口待确认）
+
+### 调度配置
+- **launchd 配置文件**：`~/Library/LaunchAgents/com.openclaw.stock-review.plist`
+- **执行时间**：每天 7:30（早报）、17:30（复盘，工作日）
+- **日志文件**：`/tmp/openclaw/stock-review.log`
+- **缓存目录**：`~/.openclaw/workspace/cache/`
+
+### 性能指标（v21.3）
+| 指标 | 目标 | 实际 | 状态 |
+|------|------|------|------|
+| 执行时间 | <120 秒 | 23.9-60.9 秒 | ✅ |
+| 数据完整度 | >90% | 92% (12/13) | ✅ |
+| 持仓数据 | 8/8 | 8/8 | ✅ |
+| 行业板块 | 实时 | ⚠️ 昨日缓存 | 待优化 |
+
+### 模板格式
+- **早报**：`morning_report_template.py` v1.1
+- **复盘**：`afternoon_review_template.py` v2.1
+- **连板股板块标注**：手动映射核心连板股所属板块
+
+### 验证脚本
+- `validate_report.py` - 每次执行后自动检查数据质量
+- 检查项目：指数、持仓、美股、行业、龙虎榜、涨停板、执行时间
+
+---
+
+## 🔧 技术配置
+
+### 模型配置
+- **主模型**：百炼 qwen3.5-plus（128K 上下文）
+- **备用模型**：kimi-k2.5、MiniMax-M2.5
+- **嵌入模型**：Ollama nomic-embed-text-v2-moe（本地）
+
+### API Keys 配置
+| API | Key | 状态 |
+|-----|-----|------|
+| 百炼 API | sk-ce9e5... | ✅ |
+| Tushare Token | 7fd1efd... | ✅ |
+| Brave Search | BSAejXGS5E... | ✅ |
+| Tavily API | tvly-dev-7gj... | ✅ |
+| GitHub Token | ghp_DoBrTP... | ✅ |
+| QQ 邮箱 | 授权码已配 | ✅ |
+| QVeris API | sk-cDhr2JY... | ✅ |
+
+---
+
+## 📝 重要偏好
+
+### 回复方式
+- **文字提问** → 文字回复
+- **语音提问** → 语音条 + 文字回复（保持沟通方式一致）
+
+### 数据要求
+- **数据完整性**：早报和复盘需要包含实时市场数据
+- **持仓跟踪**：每次报告需针对具体持仓提供个性化分析
+- **多源校验**：严格校验（2 个以上数据源数值一致，误差<0.5%）
+- **数据标注**：单源数据标注⚠️，延迟数据标注⚠️
+
+### 报告内容
+- **龙虎榜**：复盘报告需包含机构/游资动向分析
+- **融资余额**：早报需跟踪市场杠杆资金变化
+- **AI 产业链**：重点关注 AI 相关企业股价和行业动态
+- **风险提示**：需要明确的投资风险提示
+- **格式固定**：早报使用标准模板 v1.0
+
+---
+
+## 📅 重要日期
+
+- **2026-03-22**：
+  - 小红书发布流程打通（MCP 服务器 + xhs_client.py）
+  - 规避 AI 检测技巧总结（口语化 + 个人感受 + emoji）
+  - 每周深度反思时间调整：周日 20:00 → 周六 20:00
+- **2026-03-18**：
+  - 确立语音消息处理完整流程（STT+TTS+ 飞书）
+  - 配置定时任务（天气、火车票、股市）
+  - 创建语音功能文档和测试脚本
+- **2026-03-12**：确立股市早报标准格式 v1.0
+
+---
+
+*本文件仅在主会话（一对一私聊）中加载，群聊中不加载以保护隐私。*

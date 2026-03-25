@@ -1,0 +1,56 @@
+# 缓存文件
+cache/
+tmp/
+output/
+*.cache
+
+# 日志文件
+logs/
+*.log
+
+# Python 缓存
+__pycache__/
+*.py[cod]
+*.pyo
+
+# 临时文件
+.DS_Store
+*.tmp
+*.bak
+
+# 大型数据文件
+*.json
+reports/
+
+# 旧版本脚本（保留最新版）
+scripts/*_v*.py
+scripts/stock_data_v*.py
+scripts/stock_market_analysis_v*.py
+
+# 文档（太多）
+docs/
+
+# 技能目录（太大）
+skills/
+lib/
+
+# 记忆文件
+memory/2026-03-*.md
+memory/daily-*.md
+memory/weekly-*.md
+memory/self-*.md
+
+# 项目文件
+projects/
+miaoxiang/
+redbook_*/
+voice-input/
+templates/
+
+# OpenClaw 内部
+.openclaw/
+.clawhub/
+.learnings/
+
+# 定时任务（已安装到系统）
+cron/

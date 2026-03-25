@@ -1,0 +1,105 @@
+relations:
+  depends_on:
+    acyclic: true
+    cardinality: many_to_many
+    from_types:
+    - Task
+    to_types:
+    - Task
+  has_owner:
+    cardinality: many_to_one
+    from_types:
+    - Project
+    - Task
+    to_types:
+    - Person
+  has_task:
+    cardinality: one_to_many
+    from_types:
+    - Project
+    to_types:
+    - Task
+  holds_stock:
+    cardinality: one_to_many
+    from_types:
+    - Person
+    to_types:
+    - Stock
+  uses_account:
+    cardinality: many_to_one
+    from_types:
+    - Task
+    - ScheduledTask
+    to_types:
+    - Account
+types:
+  Account:
+    properties:
+      configured: boolean
+      service: string
+      username: string
+    required:
+    - service
+  Person:
+    properties:
+      email: string
+      name: string
+      role: string
+    required:
+    - name
+  Project:
+    properties:
+      end_date: date
+      name: string
+      start_date: date
+      status: string
+    required:
+    - name
+    - status
+    status_enum:
+    - planning
+    - active
+    - on_hold
+    - completed
+    - archived
+  ScheduledTask:
+    properties:
+      enabled: boolean
+      name: string
+      schedule: string
+      script: string
+    required:
+    - name
+    - schedule
+  Skill:
+    properties:
+      configured: boolean
+      name: string
+      purpose: string
+      status: enum[installed, active, inactive]
+    required:
+    - name
+  Stock:
+    properties:
+      code: string
+      industry: string
+      name: string
+    required:
+    - name
+    - code
+  Task:
+    properties:
+      assignee: string
+      due_date: date
+      priority: enum[low, medium, high, urgent]
+      status: string
+      title: string
+    required:
+    - title
+    - status
+    status_enum:
+    - open
+    - in_progress
+    - blocked
+    - done
+    - cancelled
