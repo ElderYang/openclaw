@@ -114,20 +114,28 @@ AI 会如何改变你的工作？
     ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     
     log("⏳ 等待 MCP 服务器启动...")
-    subprocess.run(['sleep', '20'], capture_output=True)
+    subprocess.run(['sleep', '30'], capture_output=True)
     
-    # 4. 检查登录状态
+    # 4. 检查登录状态（重试 3 次）
     log("检查登录状态...")
-    result = subprocess.run([
-        'python3', str(mcp_dir / 'scripts/xhs_client.py'), 'status'
-    ], capture_output=True, text=True, timeout=30)
+    logged_in = False
+    for attempt in range(3):
+        result = subprocess.run([
+            'python3', str(mcp_dir / 'scripts/xhs_client.py'), 'status'
+        ], capture_output=True, text=True, timeout=30)
+        
+        if 'Logged in' in result.stdout:
+            log("✅ 登录状态正常")
+            logged_in = True
+            break
+        else:
+            log(f"⏳ 登录检查失败，重试 {attempt+1}/3...")
+            subprocess.run(['sleep', '5'], capture_output=True)
     
-    if 'Logged in' in result.stdout:
-        log("✅ 登录状态正常")
-    else:
+    if not logged_in:
         log(f"❌ 登录失败：{result.stdout}")
-        mcp_process.terminate()
-        return
+        log("⚠️ 但保持 MCP 服务器运行，尝试直接发布...")
+        # 不关闭服务器，继续尝试发布
     
     # 5. 发布笔记
     log("\n发布笔记...")
