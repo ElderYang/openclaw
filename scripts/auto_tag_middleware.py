@@ -36,9 +36,9 @@ def add_role_tag(message: str, user_input: str = None) -> str:
     
     tag = get_role_tag(role)
     
-    # 添加标签前缀
+    # 添加标签前缀（tag 已经包含括号）
     if tag:
-        return f"【{tag}】{message}"
+        return f"{tag}{message}"
     else:
         return message
 
