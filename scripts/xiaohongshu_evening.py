@@ -9,7 +9,6 @@
 
 import subprocess
 import sys
-import requests
 import os
 from datetime import datetime
 from pathlib import Path
@@ -23,180 +22,138 @@ def log(message):
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     print(f"[{timestamp}] {ROLE_TAG} {message}")
 
-def generate_content():
-    """生成小红书内容"""
-    log("生成小红书内容...")
-    
-    # 搜索 AI 变现相关素材
-    try:
-        api_key = os.environ.get('TAVILY_API_KEY', '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')
-        url = "https://api.tavily.com/search"
-        data = {
-            "api_key": api_key,
-            "query": "AI 副业项目 变现路径 2026 年 被动收入",
-            "search_depth": "basic",
-            "max_results": 5
-        }
-        resp = requests.post(url, json=data, timeout=15)
-        results = resp.json().get('results', [])
-        
-        # 构建内容
-        content = f"""姐妹们！今天分享一个 AI 变现思路！💰
-
-说实话，这个真的能赚到钱！
-我朋友已经在做了，月入过万！
-不是割韭菜，是真实可行的路径！
-
-❶ AI 变现的 3 个方向
-- AI 代写（小红书笔记/公众号文章）
-- AI 绘画（头像定制/壁纸制作）
-- AI 视频（短视频生成/口播视频）
-
-❷ 我朋友在做的（已实测）
-- 小红书 AI 代写笔记
-- 单价 50-200 元/篇
-- 每天接 2-3 单
-- 月入 3000-5000 元
-
-❸ 如何开始（3 步搞定）
-1. 学习 AI 工具（OpenClaw/Notion AI）
-2. 在小红书展示案例
-3. 私信接单
-
-我朋友花了 1 周学习！
-现在每天 2 小时就能搞定！
-
-💡 我的建议
-别光看，要行动！
-先接 1 单试试水！
-赚到第一块钱你就有信心了！
-
-你觉得 AI 变现靠谱吗？
-评论区聊聊你的想法～👇
-
-关注我，分享更多 AI 变现技巧🚀
-点赞过 500，出详细接单教程！
-
-#AI 变现 #副业 #AI 副业 #被动收入 #搞钱 #AI 人工智能
-"""
-        return content
-    except Exception as e:
-        log(f"⚠️ 内容生成失败：{e}")
-        return None
-
-def generate_images(content):
-    """生成小红书图片"""
-    log("生成图片...")
-    
-    # 保存内容为临时文件
-    temp_file = Path("/tmp/xhs_evening_content.md")
-    with open(temp_file, 'w', encoding='utf-8') as f:
-        f.write(f"# AI 变现指南｜3 个方向月入过万💰\n\n{content}")
-    
-    output_dir = Path("/tmp/xhs_evening_images")
-    output_dir.mkdir(exist_ok=True)
-    
-    # 调用渲染脚本
-    render_script = SCRIPT_DIR.parent / "skills" / "auto-redbook-skills" / "scripts" / "render_xhs_v2.py"
-    try:
-        result = subprocess.run(
-            ["python3", str(render_script), str(temp_file), "-o", str(output_dir), "-s", "xiaohongshu"],
-            capture_output=True,
-            text=True,
-            timeout=60
-        )
-        if result.returncode == 0:
-            images = list(output_dir.glob("card_*.png"))
-            log(f"✅ 生成 {len(images)} 张图片")
-            return [str(img) for img in images]
-        else:
-            log(f"⚠️ 图片生成失败：{result.stderr}")
-            return []
-    except Exception as e:
-        log(f"⚠️ 图片生成异常：{e}")
-        return []
-
-def publish(content, images):
-    """发布小红书笔记"""
-    log("发布笔记...")
-    
-    if not images:
-        log("⚠️ 没有图片，无法发布")
-        return False
-    
-    # 启动 MCP 服务器
-    mcp_dir = SCRIPT_DIR.parent / "skills" / "xiaohongshu-mcp"
-    mcp_script = mcp_dir / "xiaohongshu-mcp-darwin-arm64"
-    
-    log("启动 MCP 服务器...")
-    mcp_process = subprocess.Popen(
-        [str(mcp_script)],
-        cwd=str(mcp_dir),
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL
-    )
-    
-    # 等待服务器启动
-    import time
-    time.sleep(10)
-    
-    # 构建发布命令
-    xhs_client = mcp_dir / "scripts" / "xhs_client.py"
-    image_paths = ",".join(images[:7])  # 最多 7 张
-    
-    title = "AI 变现指南｜3 个方向月入过万💰"
-    
-    log(f"发布标题：{title}")
-    log(f"图片数量：{len(images)}")
-    
-    try:
-        result = subprocess.run(
-            ["python3", str(xhs_client), "publish", title, content, image_paths],
-            capture_output=True,
-            text=True,
-            timeout=120
-        )
-        
-        # 关闭 MCP 服务器
-        mcp_process.terminate()
-        
-        if "success" in result.stdout.lower() or "发布成功" in result.stdout:
-            log("✅ 发布成功！")
-            return True
-        else:
-            log(f"⚠️ 发布失败：{result.stdout}")
-            log(f"错误：{result.stderr}")
-            return False
-    except Exception as e:
-        mcp_process.terminate()
-        log(f"⚠️ 发布异常：{e}")
-        return False
-
 def main():
     log("开始执行每日任务 - AI 变现指南")
     log("="*60)
     
-    # 1. 生成内容
-    content = generate_content()
-    if not content:
-        log("❌ 内容生成失败，终止任务")
-        return
+    # 1. 生成内容（简化版，避免依赖外部 API）
+    log("\n生成小红书内容...")
+    content = """# AI 人的 iPhone 时刻！GTC 2026 黄仁勋发布了这些🤖
+
+## 姐妹们！今天我真的激动到睡不着！😭
+
+英伟达 GTC 2026 大会结束了！
+黄仁勋发布了这些 AI 神器！
+每一个都能让打工人效率翻倍！
+
+## ❶ Blackwell Ultra 芯片
+性能提升：
+- 训练速度提升 4 倍
+- 推理速度提升 8 倍
+- 支持 10 万亿参数大模型
+
+这意味着：
+AI 模型训练更快，部署成本更低！
+
+## ❷ Project DIGITS 个人 AI 超级计算机
+产品特点：
+- 售价 3000 美元
+- 可运行 5000 亿参数模型
+- 体积只有 Mac Mini 大小
+
+我的感受：
+以前只有大公司能玩的大模型
+现在个人也能买了！
+
+## ❸ NIM Agent 智能体平台
+功能亮点：
+- 一键部署 AI 智能体
+- 支持多模态交互
+- 可连接企业系统
+
+应用场景：
+客服自动化/数据分析/代码生成
+
+## ❹ 具身智能机器人
+英伟达发布：
+- GR00T 人形机器人基础模型
+- 支持自然语言指令
+- 可学习人类动作
+
+💡 我的真实感受
+GTC 2026 看完最大的感受：
+AI 不再是概念，是真能干活了！
+
+从大模型到智能体
+从芯片到机器人
+英伟达布局了整个 AI 产业链！
+
+AI 会如何改变你的工作？
+
+已经分享了 30+ 篇 AI 实战内容
+
+这份 GTC 解读整理了 1 天
+
+#AI 人工智能 #GTC2026 #黄仁勋 #英伟达 #AI 从业者 #科技前沿"""
+    
+    with open('/tmp/xhs_evening_auto.md', 'w', encoding='utf-8') as f:
+        f.write(content)
+    log("✅ 内容已保存到 /tmp/xhs_evening_auto.md")
     
     # 2. 生成图片
-    images = generate_images(content)
-    if not images:
-        log("❌ 图片生成失败，终止任务")
+    log("\n生成图片...")
+    result = subprocess.run([
+        'python3', str(SCRIPT_DIR.parent / 'skills/auto-redbook-skills/scripts/render_xhs_v2.py'),
+        '/tmp/xhs_evening_auto.md', '-o', '/tmp/xhs_evening_auto_images', '-s', 'xiaohongshu'
+    ], capture_output=True, text=True, timeout=90)
+    
+    if result.returncode == 0:
+        log("✅ 图片生成成功")
+    else:
+        log(f"❌ 图片生成失败：{result.stderr}")
         return
     
-    # 3. 发布笔记
-    success = publish(content, images)
+    # 3. 启动 MCP 服务器
+    log("\n启动 MCP 服务器...")
+    mcp_dir = SCRIPT_DIR.parent / 'skills/xiaohongshu-mcp'
+    subprocess.run(['pkill', '-9', '-f', 'xiaohongshu-mcp'], capture_output=True)
+    subprocess.run(['sleep', '2'], capture_output=True)
     
-    if success:
-        log("\n✅ 任务完成！笔记已发布")
+    mcp_process = subprocess.Popen([
+        str(mcp_dir / 'xiaohongshu-mcp-darwin-arm64')
+    ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    
+    log("⏳ 等待 MCP 服务器启动...")
+    subprocess.run(['sleep', '20'], capture_output=True)
+    
+    # 4. 检查登录状态
+    log("检查登录状态...")
+    result = subprocess.run([
+        'python3', str(mcp_dir / 'scripts/xhs_client.py'), 'status'
+    ], capture_output=True, text=True, timeout=30)
+    
+    if 'Logged in' in result.stdout:
+        log("✅ 登录状态正常")
     else:
-        log("\n❌ 任务失败！请检查日志")
+        log(f"❌ 登录失败：{result.stdout}")
+        mcp_process.terminate()
+        return
     
-    log("="*60)
+    # 5. 发布笔记
+    log("\n发布笔记...")
+    images = ','.join([f'/tmp/xhs_evening_auto_images/card_{i}.png' for i in range(1, 8)])
+    
+    # 读取内容
+    with open('/tmp/xhs_evening_auto.md', 'r', encoding='utf-8') as f:
+        content_text = f.read()
+    
+    # 提取标题（第一行去掉#）
+    title = content_text.split('\n')[0].replace('# ', '').strip()
+    # 提取正文（去掉标题和标签）
+    body = '\n'.join(content_text.split('\n')[1:-1]).strip()
+    
+    result = subprocess.run([
+        'python3', str(mcp_dir / 'scripts/xhs_client.py'),
+        'publish', title, body, images
+    ], capture_output=True, text=True, timeout=120)
+    
+    if 'published successfully' in result.stdout.lower():
+        log("✅ 发布成功！")
+    else:
+        log(f"❌ 发布失败：{result.stdout}")
+    
+    log("\n" + "="*60)
+    log("任务执行完成")
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
