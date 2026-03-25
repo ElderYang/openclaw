@@ -107,41 +107,16 @@ AI 会如何改变你的工作？
     log("\n启动 MCP 服务器...")
     mcp_dir = SCRIPT_DIR.parent / 'skills/xiaohongshu-mcp'
     subprocess.run(['pkill', '-9', '-f', 'xiaohongshu-mcp'], capture_output=True)
-    subprocess.run(['sleep', '2'], capture_output=True)
+    sleep(2)
     
     mcp_process = subprocess.Popen([
         str(mcp_dir / 'xiaohongshu-mcp-darwin-arm64')
     ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     
     log("⏳ 等待 MCP 服务器启动...")
-    subprocess.run(['sleep', '45'], capture_output=True)
+    sleep(10)  # 和中午脚本一样，只等 10 秒
     
-    # 4. 检查登录状态（重试 3 次）
-    log("检查登录状态...")
-    logged_in = False
-    for attempt in range(3):
-        result = subprocess.run([
-            'python3', str(mcp_dir / 'scripts/xhs_client.py'), 'status'
-        ], capture_output=True, text=True, timeout=30)
-        
-        if 'Logged in' in result.stdout:
-            log("✅ 登录状态正常")
-            logged_in = True
-            break
-        else:
-            log(f"⏳ 登录检查失败，重试 {attempt+1}/3...")
-            subprocess.run(['sleep', '5'], capture_output=True)
-    
-    if not logged_in:
-        log(f"❌ 登录失败：{result.stdout}")
-        log("⚠️ 但保持 MCP 服务器运行，尝试直接发布...")
-    
-    # 5. 登录成功后再等 15 秒，确保浏览器完全就绪
-    if logged_in:
-        log("⏳ 等待浏览器完全就绪...")
-        subprocess.run(['sleep', '15'], capture_output=True)
-    
-    # 5. 发布笔记
+    # 4. 直接发布（不检查登录状态，和中午脚本一样）
     log("\n发布笔记...")
     images = ','.join([f'/tmp/xhs_evening_auto_images/card_{i}.png' for i in range(1, 8)])
     
