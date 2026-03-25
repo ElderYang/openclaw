@@ -53,7 +53,7 @@ def get_role_tag(role: str) -> str:
     mapping = {
         '小红书助手': '【小红书助手】',
         '股市分析师': '【股市分析师】',
-        '个人助手': ''
+        '个人助手': '【个人助手】'
     }
     return mapping.get(role, '')
 
