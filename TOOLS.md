@@ -136,6 +136,20 @@ python3 scripts/render_xhs_v2.py <markdown> -o <输出目录> -s xiaohongshu
 
 ---
 
+## 📚 Obsidian 知识库配置
+
+**主 Vault**：`~/Obsidian`
+- 包含：学习、工作区、日常记录、templates
+- 用途：个人知识库、笔记管理
+
+**OpenClaw Vault**：`~/Documents/Obsidian Vault/OpenClaw`
+- 包含：OpenClaw 相关笔记
+- 用途：OpenClaw 项目专用
+
+**配置状态**：✅ 已识别，可在 skill 中使用
+
+---
+
 ## 📊 股市分析数据源配置
 
 ### API Keys（已配置✅）
