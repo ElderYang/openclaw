@@ -1,0 +1,64 @@
+{
+  "name": "todo-tracker",
+  "version": "1.0.0",
+  "description": "生成、跟踪和验证待办列表的执行状态。提供 generate-todo-list, mark-completed, show-progress, verify-completion 四个核心动作。",
+  "author": "yangbowen",
+  "homepage": "https://github.com/openclaw/openclaw",
+  "license": "MIT",
+  "keywords": [
+    "todo",
+    "task",
+    "productivity",
+    "tracker",
+    "management"
+  ],
+  "skills": [
+    {
+      "action": "generate-todo-list",
+      "description": "根据任务描述生成结构化的待办列表",
+      "parameters": [
+        {
+          "name": "taskDescription",
+          "type": "string",
+          "required": true,
+          "description": "需要拆解的任务描述"
+        }
+      ],
+      "permissions": ["file.write"]
+    },
+    {
+      "action": "mark-completed",
+      "description": "标记某个待办项为已完成",
+      "parameters": [
+        {
+          "name": "todoId",
+          "type": "string",
+          "required": true,
+          "description": "待办项的唯一 ID"
+        }
+      ],
+      "permissions": ["file.read", "file.write"]
+    },
+    {
+      "action": "show-progress",
+      "description": "查看当前待办列表的完成进度",
+      "parameters": [],
+      "permissions": ["file.read"]
+    },
+    {
+      "action": "verify-completion",
+      "description": "验证待办列表是否全部完成，返回未完成的项",
+      "parameters": [],
+      "permissions": ["file.read"]
+    }
+  ],
+  "files": [
+    "SKILL.md",
+    "todo_tracker.py"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/openclaw/openclaw.git",
+    "directory": "skills/todo-tracker"
+  }
+}
