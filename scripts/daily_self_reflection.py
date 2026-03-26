@@ -14,6 +14,7 @@ from pathlib import Path
 
 SELF_IMPROVING_DIR = Path.home() / "self-improving"
 WORKSPACE_DIR = Path.home() / ".openclaw" / "workspace"
+MEMORY_DIR = WORKSPACE_DIR / "memory"
 
 def log(message):
     """打印日志"""
@@ -154,6 +155,97 @@ def generate_suggestions():
     
     return suggestions
 
+def create_daily_memory():
+    """创建每日记忆文件"""
+    log("📝 创建每日记忆文件...")
+    today = datetime.now()
+    memory_file = MEMORY_DIR / f"{today.strftime('%Y-%m-%d')}.md"
+    
+    if memory_file.exists():
+        log(f"✅ 今日记忆文件已存在：{memory_file}")
+        return
+    
+    # 读取今天的纠正
+    corrections_file = SELF_IMPROVING_DIR / "corrections.md"
+    today_corrections = []
+    if corrections_file.exists():
+        content = corrections_file.read_text(encoding='utf-8')
+        today_str = today.strftime('%Y-%m-%d')
+        if today_str in content:
+            today_corrections = [today_str]
+    
+    # 生成记忆文件内容
+    memory_content = f"""# 🦞 {today.strftime('%Y-%m-%d')} 记忆日志
+
+**创建时间**: {today.strftime('%Y-%m-%d %H:%M')}  
+**来源**: Self-Improving 系统
+
+---
+
+## 🔑 关键事件
+
+### 上午（7:00-12:00）
+
+*待补充*
+
+---
+
+### 中午（12:00-14:00）
+
+*待补充*
+
+---
+
+### 下午（14:00-18:00）
+
+*待补充*
+
+---
+
+### 晚上（18:00-22:00）
+
+*待补充*
+
+---
+
+## 📊 统计数据
+
+| 指标 | 数值 |
+|------|------|
+| 完成任务数 | 待统计 |
+| Git 提交数 | 待统计 |
+| 新创建文件 | 待统计 |
+| 问题修复 | 待统计 |
+
+---
+
+## 💡 关键学习
+
+*待补充*
+
+---
+
+## ⏰ 定时任务状态
+
+| 任务 | 时间 | 状态 |
+|------|------|------|
+| 天气预报 | 7:00 | 待检查 |
+| 股市早报 | 7:30 | 待检查 |
+| 小红书早报 | 6:30 | 待检查 |
+| 手机行业日报 | 9:00 | 待检查 |
+| 小红书午报 | 12:30 | 待检查 |
+| 小红书晚报 | 20:00 | 待检查 |
+| 每日自省 | 22:00 | ✅ 执行中 |
+
+---
+
+*最后更新：{today.strftime('%Y-%m-%d %H:%M')}*
+"""
+    
+    MEMORY_DIR.mkdir(parents=True, exist_ok=True)
+    memory_file.write_text(memory_content, encoding='utf-8')
+    log(f"✅ 已创建每日记忆文件：{memory_file}")
+
 def update_heartbeat_state():
     """更新心跳状态"""
     log("📊 更新心跳状态...")
@@ -175,6 +267,7 @@ last_heartbeat_result: 每日自省完成
 - ✅ 检查记忆更新
 - ✅ 扫描日志错误
 - ✅ 生成反思建议
+- ✅ 创建每日记忆文件
 - ✅ 更新心跳状态
 
 ## 待处理
@@ -208,10 +301,13 @@ def main():
     # 6. 生成建议
     suggestions = generate_suggestions()
     
-    # 7. 更新状态
+    # 7. 创建每日记忆文件（新增！）
+    create_daily_memory()
+    
+    # 8. 更新状态
     update_heartbeat_state()
     
-    # 8. 输出总结
+    # 9. 输出总结
     log("\n" + "="*60)
     log("📋 今日自省总结")
     log("="*60)
