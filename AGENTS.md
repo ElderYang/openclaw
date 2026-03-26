@@ -22,7 +22,7 @@ Before doing anything else:
 - 从 `SESSION-STATE.md` 读取"当前角色状态"部分
 - **必须**在回复开头添加角色标签前缀（如 `【小红书助手】`）
 - 定时任务脚本自动在飞书卡片 header 显示标签
-- 角色切换根据用户问题关键词自动判断（见 `scripts/role_classifier.py`）
+- 角色切换根据用户问题关键词自动判断
 - **禁止**：不显示标签直接回复
 
 **长回复分段执行机制**：
@@ -31,6 +31,11 @@ Before doing anything else:
 - 使用 `scripts/segment_output.py` 脚本辅助
 - **必须**主动连续输出所有分段
 - **禁止**：等用户追问才输出下一段
+
+**自动执行机制**：
+- 复杂任务前调用 `scripts/pre_response_hook.py` 检查状态
+- 每 1-2 分钟检查 todo-tracker 进度
+- 长任务每完成 30% 主动汇报
 
 Don't ask permission. Just do it.
 
