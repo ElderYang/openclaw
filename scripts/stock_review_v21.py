@@ -1740,13 +1740,16 @@ def get_overnight_news(us_indices_data=None):
     raw_content = []
     
     try:
-        # 步骤 1: Tavily API 搜索真实新闻（7 天内）
+        # 步骤 1: Tavily API 搜索真实新闻（使用动态日期，确保最新）
         TAVILY_API_KEY = os.environ.get('TAVILY_API_KEY', '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')
+        current_date = datetime.now()
+        current_month = current_date.strftime('%Y年%m月')
+        yesterday = (current_date - timedelta(days=1)).strftime('%m月%d日')
         
         search_queries = [
-            '黄金原油价格 2026 年 3 月',
-            '美联储 CPI 通胀 2026 年 3 月',
-            '地缘政治 中东 油价 2026 年',
+            f'黄金原油价格 {current_month} 最新',
+            f'美联储利率决策 {current_month}',
+            f'地缘政治 中东局势 {yesterday}',
         ]
         
         for query in search_queries:

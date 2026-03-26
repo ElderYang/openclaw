@@ -16,6 +16,13 @@ Before doing anything else:
 4. **If in MAIN SESSION** (direct chat with your human): Also read `MEMORY.md`
 5. **Check `SESSION-STATE.md`** — active task state and WAL captures
 6. **Review `proactive-tracker.md`** — any overdue proactive behaviors?
+7. **Check `SESSION-STATE.md` 当前角色** — 获取角色标签（【小红书助手】/【股市分析师】）
+
+**角色标签规则**：
+- 从 `SESSION-STATE.md` 读取"当前角色状态"部分
+- 在回复开头添加角色标签前缀（如 `【小红书助手】`）
+- 定时任务脚本自动在飞书卡片 header 显示标签
+- 角色切换根据用户问题关键词自动判断（见 `scripts/role_classifier.py`）
 
 Don't ask permission. Just do it.
 

@@ -7,7 +7,7 @@
 """
 
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 
 def safe_get(data, *keys, default=None):
     """安全获取嵌套字典值"""
@@ -142,19 +142,25 @@ def generate_morning_report(data):
     weekday_map = {'Monday': '星期一', 'Tuesday': '星期二', 'Wednesday': '星期三', 
                    'Thursday': '星期四', 'Friday': '星期五', 'Saturday': '星期六', 'Sunday': '星期日'}
     weekday_cn = weekday_map.get(current_weekday, '星期 X')
+    today_str = current_date.strftime('%m/%d')
+    tomorrow = current_date + timedelta(days=1)
+    tomorrow_str = tomorrow.strftime('%m/%d')
+    day_after = current_date + timedelta(days=2)
+    day_after_str = day_after.strftime('%m/%d')
+    
     print("【2】投资日历 | {} {}".format(current_date.strftime('%Y-%m-%d'), weekday_cn))
     print("-"*80)
-    print("  📌 今日焦点事件（3 月 25 日）：")
-    print("     • MLF 到期 4500 亿元（央行公开市场操作）")
+    print(f"  📌 今日焦点事件（{current_date.strftime('%m 月 %d 日')}）：")
     print("     • 多家上市公司 2025 年年报密集披露期")
     print("     • 一季报预告窗口期开启")
+    print("     • 央行公开市场操作（MLF/逆回购到期关注）")
     print()
     print("  📅 近期重要事件：")
-    print("     • 3/26-28：博鳌亚洲论坛 2026 年年会")
-    print("     • 3/27：美国核心 PCE 物价指数（美联储关键通胀指标）")
-    print("     • 3/31：3 月官方制造业 PMI 公布")
+    print(f"     • {today_str}-{tomorrow_str}：博鳌亚洲论坛 2026 年年会")
+    print(f"     • {tomorrow_str}：美国核心 PCE 物价指数（美联储关键通胀指标）")
+    print(f"     • {day_after_str}：3 月官方制造业 PMI 公布")
     print("     • 4/1-4：清明假期前资金面波动")
-    print("     • 4/10-12：博鳌亚洲论坛（重点关注）")
+    print(f"     • 4/10-12：博鳌亚洲论坛（重点关注）")
     print()
     
     # 【3】A 股早盘分析
