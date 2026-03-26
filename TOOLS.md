@@ -150,6 +150,23 @@ python3 scripts/render_xhs_v2.py <markdown> -o <输出目录> -s xiaohongshu
 
 ---
 
+## 🔌 API Gateway 配置
+
+**MATON_API_KEY**：✅ 已配置
+- **用途**：连接 100+ 外部 API（Google/Microsoft/Slack/Notion/HubSpot 等）
+- **提供商**：Maton.ai (https://maton.ai)
+- **安全**：API Key 仅用于 Maton 认证，第三方服务需单独 OAuth 授权
+- **状态**：已配置到 openclaw.json
+
+### 支持的连接
+- Google Workspace（Gmail/Drive/Calendar）
+- Microsoft 365（Outlook/OneDrive/Teams）
+- GitHub、Notion、Slack、Airtable
+- HubSpot、Salesforce 等 CRM
+- 更多：https://maton.ai/connectors
+
+---
+
 ## 📊 股市分析数据源配置
 
 ### API Keys（已配置✅）
