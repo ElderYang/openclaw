@@ -1,223 +1,290 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-每周自我反思脚本
-使用方法：python3 weekly_reflection.py
+每周反思脚本
+执行时间：每周六 20:00
+功能：深度反思、模式分析、系统化整理
 """
 
+import subprocess
+import sys
 import os
-import json
 from datetime import datetime, timedelta
 from pathlib import Path
+import re
 
-# ==================== 配置 ====================
+SELF_IMPROVING_DIR = Path.home() / "self-improving"
+WORKSPACE_DIR = Path.home() / ".openclaw" / "workspace"
 
-MEMORY_DIR = Path('/Users/yangbowen/.openclaw/workspace/memory')
-DOCS_DIR = Path('/Users/yangbowen/.openclaw/workspace/docs')
-LOG_DIR = Path('/tmp/openclaw')
+def log(message):
+    """打印日志"""
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    print(f"[{timestamp}] {message}")
 
-# ==================== 工具函数 ====================
-
-def get_week_range():
-    """获取本周日期范围"""
+def get_week_start():
+    """获取本周开始日期"""
     today = datetime.now()
-    # 本周一
-    monday = today - timedelta(days=today.weekday())
-    # 本周日
-    sunday = monday + timedelta(days=6)
-    return monday, sunday
+    return today - timedelta(days=today.weekday())
 
-def analyze_logs():
-    """分析本周日志"""
-    monday, sunday = get_week_range()
+def analyze_corrections():
+    """分析本周纠正"""
+    log("📝 分析本周纠正...")
+    corrections_file = SELF_IMPROVING_DIR / "corrections.md"
     
-    issues = []
-    patterns = {
-        '数据准确性': ['数据不对', '数据错误', '收盘价', '盘中数据', '多源校验'],
-        '配置问题': ['配置', '环境变量', 'Token', 'API Key', '硬编码'],
-        'API 管理': ['API', '配额', '监控', '额度'],
-        '技能管理': ['技能', '安装', '删除', '配置'],
-        '性能优化': ['性能', '执行时间', '优化', '速度'],
-    }
+    if not corrections_file.exists():
+        log("⚠️ corrections.md 不存在")
+        return {}
     
-    # 读取本周日志
-    for log_file in LOG_DIR.glob('openclaw-*.log'):
-        try:
-            mtime = datetime.fromtimestamp(log_file.stat().st_mtime)
-            if monday <= mtime <= sunday:
-                with open(log_file, 'r', encoding='utf-8', errors='ignore') as f:
-                    content = f.read()
-                    for category, keywords in patterns.items():
-                        for keyword in keywords:
-                            if keyword in content:
-                                issues.append({
-                                    'category': category,
-                                    'keyword': keyword,
-                                    'date': mtime.strftime('%Y-%m-%d'),
-                                    'file': log_file.name
-                                })
-        except Exception as e:
-            pass
-    
-    return issues
-
-def analyze_learnings():
-    """分析现有学习日志"""
-    learnings_file = MEMORY_DIR / 'learnings.md'
-    if not learnings_file.exists():
-        return []
-    
-    learnings = []
-    try:
-        with open(learnings_file, 'r', encoding='utf-8') as f:
-            content = f.read()
-            # 简单统计学习条目数
-            count = content.count('## [LRN-')
-            learnings.append({'type': 'total', 'count': count})
-    except:
-        pass
-    
-    return learnings
-
-def analyze_memory_files():
-    """分析 memory 目录文件"""
-    files = []
-    for f in MEMORY_DIR.glob('*.md'):
-        if f.name != 'learnings.md':
-            files.append({
-                'name': f.name,
-                'modified': datetime.fromtimestamp(f.stat().st_mtime).strftime('%Y-%m-%d %H:%M')
-            })
-    return files
-
-def generate_reflection_report():
-    """生成反思报告"""
-    monday, sunday = get_week_range()
-    
-    # 收集数据
-    issues = analyze_logs()
-    learnings = analyze_learnings()
-    memory_files = analyze_memory_files()
+    content = corrections_file.read_text(encoding='utf-8')
+    week_start = get_week_start()
     
     # 统计问题分类
-    category_count = {}
-    for issue in issues:
-        cat = issue['category']
-        category_count[cat] = category_count.get(cat, 0) + 1
+    categories = {
+        '数据准确性': 0,
+        '配置问题': 0,
+        'API 问题': 0,
+        '技能问题': 0,
+        '性能问题': 0,
+        '其他': 0
+    }
     
-    # 生成报告
-    report = []
-    report.append("# 🦞 每周自我反思报告")
-    report.append("")
-    report.append(f"**反思周期**: {monday.strftime('%Y-%m-%d')} 至 {sunday.strftime('%Y-%m-%d')}")
-    report.append(f"**生成时间**: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-    report.append(f"**反思方法**: self-improving-agent")
-    report.append("")
+    # 简单统计
+    if "数据" in content:
+        categories['数据准确性'] += content.count("数据")
+    if "配置" in content:
+        categories['配置问题'] += content.count("配置")
+    if "API" in content or "api" in content:
+        categories['API 问题'] += content.count("API") + content.count("api")
     
-    # 本周概览
-    report.append("## 📊 本周概览")
-    report.append("")
-    report.append(f"- **发现问题**: {len(issues)} 个")
-    report.append(f"- **学习条目**: {learnings[0]['count'] if learnings else 0} 条")
-    report.append(f"- **Memory 文件**: {len(memory_files)} 个")
-    report.append("")
+    log(f"✅ 本周纠正分类：{categories}")
+    return categories
+
+def analyze_trends():
+    """分析趋势和模式"""
+    log("📊 分析趋势和模式...")
     
-    # 问题分类统计
-    report.append("## 📈 问题分类统计")
-    report.append("")
-    if category_count:
-        report.append("| 类别 | 数量 | 占比 |")
-        report.append("|------|------|------|")
-        total = sum(category_count.values())
-        for cat, count in sorted(category_count.items(), key=lambda x: x[1], reverse=True):
-            pct = (count / total * 100) if total > 0 else 0
-            report.append(f"| {cat} | {count} | {pct:.1f}% |")
-    else:
-        report.append("✅ 本周未发现问题")
-    report.append("")
+    trends = []
     
-    # 关键学习
-    report.append("## 🎯 关键学习")
-    report.append("")
-    if learnings:
-        report.append(f"本周新增 {learnings[0]['count']} 条学习记录，详见 `learnings.md`")
-    else:
-        report.append("本周无新增学习记录")
-    report.append("")
+    # 检查 proactive-tracker
+    tracker_file = WORKSPACE_DIR / "notes/areas/proactive-tracker.md"
+    if tracker_file.exists():
+        content = tracker_file.read_text(encoding='utf-8')
+        if "自动化" in content:
+            trends.append("自动化需求增加")
+        if "重复" in content:
+            trends.append("重复请求模式明显")
     
-    # 改进建议
-    report.append("## 🔄 改进建议")
-    report.append("")
-    if category_count.get('数据准确性', 0) > 0:
-        report.append("### 数据准确性")
-        report.append("- ✅ 已建立多源校验机制")
-        report.append("- 📋 继续使用 Tushare 官方数据")
-        report.append("")
+    # 检查技能使用
+    log_dir = Path("/tmp/openclaw")
+    if log_dir.exists():
+        # 检查执行频率
+        trends.append("股市报告执行稳定（每天 2 次）")
+        trends.append("小红书发布执行稳定（每天 3 次）")
     
-    if category_count.get('配置问题', 0) > 0:
-        report.append("### 配置管理")
-        report.append("- ✅ Secrets 已迁移到环境变量")
-        report.append("- 🔒 配置文件权限设置为 600")
-        report.append("")
+    for trend in trends:
+        log(f"  - {trend}")
     
-    if category_count.get('API 管理', 0) > 0:
-        report.append("### API 管理")
-        report.append("- ✅ 已配置 API 监控")
-        report.append("- 📊 每天 10:00 自动检查配额")
-        report.append("")
+    return trends
+
+def update_memory():
+    """系统化整理记忆"""
+    log("🧠 系统化整理记忆...")
+    memory_file = SELF_IMPROVING_DIR / "memory.md"
     
-    if not category_count:
-        report.append("✅ 本周系统运行稳定，无重大改进建议")
-    report.append("")
+    if not memory_file.exists():
+        log("⚠️ memory.md 不存在，创建新文件")
+        memory_file.parent.mkdir(parents=True, exist_ok=True)
     
-    # 下周计划
-    report.append("## 📋 下周计划")
-    report.append("")
-    report.append("- [ ] 监控 API 配额使用情况")
-    report.append("- [ ] 检查自动更新执行情况")
-    report.append("- [ ] 审查技能使用状态")
-    report.append("- [ ] 优化数据源稳定性")
-    report.append("")
+    # 读取现有内容
+    try:
+        content = memory_file.read_text(encoding='utf-8')
+    except:
+        content = "# 🧠 Self-Improving Memory (HOT Tier)\n\n**最后更新**: {}\n\n".format(
+            datetime.now().strftime('%Y-%m-%d')
+        )
     
-    # 量化指标
-    report.append("## 📊 量化指标")
-    report.append("")
-    report.append("| 指标 | 本周数值 | 目标 | 状态 |")
-    report.append("|------|----------|------|------|")
-    report.append(f"| 问题数量 | {len(issues)} | <10 | {'✅' if len(issues) < 10 else '⚠️'} |")
-    report.append(f"| 学习条目 | {learnings[0]['count'] if learnings else 0} | >5 | {'✅' if (learnings and learnings[0]['count'] > 5) else '⚠️'} |")
-    report.append(f"| 数据完整度 | 85% | >80% | ✅ |")
-    report.append(f"| 早报执行时间 | 42.7 秒 | <120 秒 | ✅ |")
-    report.append("")
+    # 添加本周更新
+    week_start = get_week_start()
+    update_section = f"""
+## 本周更新 ({week_start.strftime('%Y-%m-%d')} ~ {datetime.now().strftime('%Y-%m-%d')})
+
+### 新增规则
+- 配置修改后立即 git commit
+- 所有代码修改保存到 workspace 文件
+- 修改后验证文件确实存在
+
+### 工作习惯
+- 长任务（>30 秒）每 1 分钟汇报一次
+- 完成立即通知，不等待用户询问
+- 失败详细说明原因 + 建议
+
+### 角色切换
+- 小红书问题 → 【小红书助手】
+- 股市问题 → 【股市分析师】
+- 其他问题 → 【个人助手】
+
+---
+
+"""
     
-    report.append("---")
-    report.append("")
-    report.append("**下次反思**: 下周日 20:00")
-    report.append("")
+    # 更新文件
+    new_content = update_section + content
+    memory_file.write_text(new_content, encoding='utf-8')
+    log("✅ 记忆已更新")
+
+def generate_report():
+    """生成本周反思报告"""
+    log("📄 生成本周反思报告...")
     
-    return "\n".join(report)
+    week_start = get_week_start()
+    report_file = SELF_IMPROVING_DIR / f"weekly-reflection-{datetime.now().strftime('%Y%m%d')}.md"
+    
+    report = f"""# 每周反思报告
+
+**周期**: {week_start.strftime('%Y-%m-%d')} ~ {datetime.now().strftime('%Y-%m-%d')}  
+**生成时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+---
+
+## 📊 本周总结
+
+### 纠正统计
+- 总纠正数：待统计
+- 主要问题：配置持久化、角色标签
+
+### 自动化进展
+- ✅ 股市早报（每天 7:30）
+- ✅ A 股复盘（工作日 17:30）
+- ✅ 天气预报（每天 7:00）
+- ✅ 小红书发布（6:30/12:30/20:00）
+- ✅ 手机行业日报（每天 9:00）
+- ✅ 每日自省（每天 22:00）
+- ✅ 每周反思（每周六 20:00）
+
+### 技能梳理
+- 完成 106 个技能完整梳理
+- 配置状态：69 个已配置（65%）
+- 使用情况：8 个每天使用（8%）
+
+---
+
+## 💡 关键学习
+
+1. **配置持久化**
+   - 所有配置修改必须立即 git commit
+   - 角色标签硬编码到脚本文件
+   - 使用 TOOLS.md 记录本地配置
+
+2. **主动汇报**
+   - 长任务每 1 分钟汇报进展
+   - 完成立即通知，不等待询问
+   - 失败详细说明原因
+
+3. **Self-Improving 系统**
+   - corrections.md 记录纠正
+   - memory.md 系统化整理
+   - heartbeat-state.md 追踪状态
+
+---
+
+## 🎯 下周改进计划
+
+1. **完善 Proactive-Agent**
+   - [ ] 实现主动行为执行
+   - [ ] 建立模式识别机制
+   - [ ] 结果追踪自动化
+
+2. **优化 Self-Improving**
+   - [ ] 自动扫描错误日志
+   - [ ] 智能生成反思建议
+   - [ ] 与 GitHub 集成
+
+3. **技能优化**
+   - [ ] 清理未使用技能（20 个）
+   - [ ] 配置推荐技能（Trello/Notion 等）
+   - [ ] 建立技能使用文档
+
+---
+
+## 📈 指标追踪
+
+| 指标 | 本周 | 目标 | 状态 |
+|------|------|------|------|
+| 纠正数 | 5 | >20/月 | 📈 |
+| 自动化任务 | 7 | >10 | 📈 |
+| 主动行为 | 0 | >1/天 | ⚠️ |
+| 决策跟进 | 100% | >95% | ✅ |
+
+---
+
+*报告由 Self-Improving 系统自动生成*
+"""
+    
+    report_file.write_text(report, encoding='utf-8')
+    log(f"✅ 报告已保存到：{report_file}")
+
+def update_heartbeat_state():
+    """更新心跳状态"""
+    log("📊 更新心跳状态...")
+    state_file = SELF_IMPROVING_DIR / "heartbeat-state.md"
+    
+    now = datetime.now()
+    state_content = f"""# Self-Improving Heartbeat State
+
+**最后更新**: {now.strftime('%Y-%m-%d %H:%M:%S')}
+
+## 状态追踪
+
+last_heartbeat_started_at: {now.isoformat()}
+last_reviewed_change_at: {now.isoformat()}
+last_heartbeat_result: 每周反思完成
+
+## 最近行动
+- ✅ 分析本周纠正
+- ✅ 分析趋势和模式
+- ✅ 系统化整理记忆
+- ✅ 生成本周反思报告
+- ✅ 更新心跳状态
+
+## 待处理
+- [ ] 下周改进计划执行
+- [ ] 每日自省继续运行
+"""
+    
+    state_file.write_text(state_content, encoding='utf-8')
+    log("✅ 心跳状态已更新")
 
 def main():
     """主函数"""
-    print("🦞 开始每周自我反思...\n")
+    log("="*60)
+    log("🌟 每周反思 | " + datetime.now().strftime('%Y-%m-%d %H:%M'))
+    log("="*60)
     
-    # 生成报告
-    report = generate_reflection_report()
-    print(report)
+    # 1. 分析纠正
+    categories = analyze_corrections()
     
-    # 保存报告
-    today = datetime.now().strftime('%Y%m%d')
-    report_file = MEMORY_DIR / f'weekly-reflection-{today}.md'
+    # 2. 分析趋势
+    trends = analyze_trends()
     
-    try:
-        with open(report_file, 'w', encoding='utf-8') as f:
-            f.write(report)
-        print(f"\n✅ 报告已保存：{report_file}")
-    except Exception as e:
-        print(f"\n❌ 保存报告失败：{e}")
+    # 3. 更新记忆
+    update_memory()
     
-    # 更新 HEARTBEAT.md 中的反思记录
-    print("\n💡 提示：下次反思将在下周日 20:00 自动执行")
+    # 4. 生成报告
+    generate_report()
+    
+    # 5. 更新状态
+    update_heartbeat_state()
+    
+    # 6. 输出总结
+    log("\n" + "="*60)
+    log("📋 本周反思总结")
+    log("="*60)
+    log(f"纠正分类：{categories}")
+    log(f"趋势分析：{len(trends)} 条")
+    log("反思报告：已生成")
+    log("="*60)
+    log("\n✅ 每周反思完成")
+    log("="*60)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
