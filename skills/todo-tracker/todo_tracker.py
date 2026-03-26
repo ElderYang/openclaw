@@ -60,11 +60,9 @@ def generate_todo_list(task_description, items=None):
     # 检查是否有未完成的待办
     existing = load_todo_list()
     if existing and any(item['status'] == 'pending' for item in existing.get('items', [])):
-        return {
-            'success': False,
-            'message': '⚠️ 已有未完成的待办列表，请先完成或取消当前任务',
-            'data': {'currentTodo': existing}
-        }
+        # 如果有未完成的，追加新任务而不是拒绝
+        print(f"⚠️ 已有未完成的待办列表，将追加新任务")
+        print_progress(existing)
     
     # 如果没有传入 items，使用默认拆解
     if not items:
@@ -139,6 +137,28 @@ def mark_completed(todo_id):
             'data': None
         }
 
+def print_progress(todo_list):
+    """打印进度"""
+    if not todo_list:
+        return
+    
+    pending = [i for i in todo_list['items'] if i['status'] == 'pending']
+    completed = [i for i in todo_list['items'] if i['status'] == 'completed']
+    
+    print(f"\n📋 **待办列表：{todo_list['title']}**")
+    print(f"进度：{len(completed)}/{len(todo_list['items'])} 已完成\n")
+    
+    if completed:
+        print("✅ 已完成：")
+        for item in completed:
+            print(f"  - {item['description']}")
+    
+    if pending:
+        print("\n⏳ 待完成：")
+        for item in pending:
+            print(f"  - [{item['id']}] {item['description']}")
+    print()
+
 def show_progress():
     """查看进度"""
     todo_list = load_todo_list()
@@ -164,6 +184,9 @@ def show_progress():
         progress_text += "\n⏳ 待完成：\n"
         for item in pending:
             progress_text += f"  - [{item['id']}] {item['description']}\n"
+    
+    # 打印进度
+    print_progress(todo_list)
     
     return {
         'success': True,
@@ -222,9 +245,19 @@ def main():
     if action == 'generate-todo-list':
         task_desc = sys.argv[2] if len(sys.argv) > 2 else "未命名任务"
         result = generate_todo_list(task_desc)
+        # 生成后立即显示进度
+        if result['success']:
+            todo_list = load_todo_list()
+            if todo_list:
+                print_progress(todo_list)
     elif action == 'mark-completed':
         todo_id = sys.argv[2] if len(sys.argv) > 2 else ""
         result = mark_completed(todo_id)
+        # 标记后立即显示进度
+        if result['success']:
+            todo_list = load_todo_list()
+            if todo_list:
+                print_progress(todo_list)
     elif action == 'show-progress':
         result = show_progress()
     elif action == 'verify-completion':
@@ -233,9 +266,11 @@ def main():
         print(f"❌ 不支持的动作：{action}")
         sys.exit(1)
     
-    print(result['message'])
-    if result.get('data'):
-        print(json.dumps(result['data'], ensure_ascii=False, indent=2))
+    if not (action in ['generate-todo-list', 'mark-completed'] and result['success']):
+        # 避免重复打印（generate 和 mark 已经打印了进度）
+        print(result['message'])
+        if result.get('data'):
+            print(json.dumps(result['data'], ensure_ascii=False, indent=2))
 
 if __name__ == "__main__":
     main()
