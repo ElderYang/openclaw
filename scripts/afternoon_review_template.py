@@ -11,6 +11,11 @@ from datetime import datetime
 def generate_afternoon_review(data):
     """生成标准格式 A 股复盘报告（专业版）"""
     
+    # 数据验证
+    if not data or not isinstance(data, dict):
+        print("❌ 数据为空或格式错误，无法生成报告")
+        return
+    
     print("="*80)
     print("📊 A 股复盘报告 | {} 星期{}".format(
         datetime.now().strftime('%Y 年 %m 月 %d 日'),
@@ -23,8 +28,8 @@ def generate_afternoon_review(data):
     # 📖 导读
     print("📖 导读")
     print("-"*80)
-    zt = data.get('limit_up') or {}
-    lhb = data.get('longhubang') or {}
+    zt = (data.get('limit_up') or {}) if data else {}
+    lhb = (data.get('longhubang') or {}) if data else {}
     
     zt_count = zt.get('total_count', '待确认') if zt else '待确认'
     lb_count = zt.get('lianban_count', '待确认') if zt else '待确认'
@@ -39,7 +44,7 @@ def generate_afternoon_review(data):
     # 【1】市场概览
     print("【1】市场概览")
     print("-"*80)
-    indices = data.get('indices', {})
+    indices = (data.get('indices') or {}) if data else {}
     
     print("  主要指数收盘：")
     for name, d in indices.items():

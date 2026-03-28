@@ -150,8 +150,19 @@ def publish_note(title, content, images):
             cwd=str(mcp_dir)
         )
         import time
-        time.sleep(3)
-        print("✅ MCP 服务器已启动")
+        # 等待 MCP 完全启动（需要 6-8 秒）
+        print("⏳ 等待 MCP 服务器启动...")
+        for i in range(10):
+            try:
+                resp = requests.get("http://127.0.0.1:18060/api/v1/login/status", timeout=2)
+                if resp.status_code == 200:
+                    print("✅ MCP 服务器已启动")
+                    break
+            except:
+                pass
+            time.sleep(1)
+        else:
+            print("⚠️ MCP 启动超时，继续尝试发布...")
     except Exception as e:
         print(f"⚠️ MCP 启动失败：{e}")
     

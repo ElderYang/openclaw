@@ -40,13 +40,17 @@ def is_weekend():
     return weekday >= 5
 
 def check_weekend_and_exit():
-    """如果是周末，打印提示并退出"""
+    """如果是周末，打印提示并退出（不发送飞书消息）"""
     if is_weekend():
-        print(f"⚠️ 今天是周末（{datetime.now().strftime('%Y-%m-%d %A')}），A 股休市，跳过执行")
+        msg = f"⚠️ 今天是周末（{datetime.now().strftime('%Y-%m-%d %A')}），A 股休市，跳过执行"
+        print(msg)
+        # 不发送飞书消息，直接退出
         sys.exit(0)
 
-# 执行周末检查
+# 执行周末检查（必须在最前面）
+print(f"[{datetime.now().strftime('%H:%M:%S')}] 开始周末检查...")
 check_weekend_and_exit()
+print(f"[{datetime.now().strftime('%H:%M:%S')}] ✅ 非周末，继续执行")
 
 # ==================== 配置 VPN 代理（东方财富 API 专用） ====================
 VPN_PROXY = {
@@ -1306,26 +1310,35 @@ def get_industry_data():
     
     print('东方财富 API 失败', end=' ')
     
-    # 尝试 6: 使用昨天缓存的行业数据（降级方案）
+    # 尝试 6: 使用昨天缓存的行业数据（降级方案，5 秒超时）
     try:
         cache_file = CACHE_DIR / f'review_v21_{(datetime.now()-timedelta(days=1)).strftime("%Y%m%d")}.json'
         if cache_file.exists():
-            with open(cache_file, 'r', encoding='utf-8') as f:
-                cache_data = json.load(f)
-            yesterday_industry = cache_data.get('data', {}).get('industry', [])
-            if yesterday_industry and isinstance(yesterday_industry, list) and len(yesterday_industry) > 0:
-                result = []
-                for item in yesterday_industry[:10]:
-                    result.append({
-                        'name': f"{item.get('name', '')}(昨日)",
-                        'change': item.get('change', 0),
-                        'source': '昨日缓存'
-                    })
-                elapsed = time.time() - start
-                print(f'✅ 昨日缓存 {len(result)} 个行业 {elapsed:.1f}秒')
-                return result
+            # 添加超时保护
+            import signal
+            def timeout_handler(signum, frame):
+                raise TimeoutError("读取缓存超时")
+            signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(5)  # 5 秒超时
+            try:
+                with open(cache_file, 'r', encoding='utf-8') as f:
+                    cache_data = json.load(f)
+                yesterday_industry = cache_data.get('data', {}).get('industry', [])
+                if yesterday_industry and isinstance(yesterday_industry, list) and len(yesterday_industry) > 0:
+                    result = []
+                    for item in yesterday_industry[:10]:
+                        result.append({
+                            'name': f"{item.get('name', '')}(昨日)",
+                            'change': item.get('change', 0),
+                            'source': '昨日缓存'
+                        })
+                    elapsed = time.time() - start
+                    print(f'✅ 昨日缓存 {len(result)} 个行业 {elapsed:.1f}秒')
+                    return result
+            finally:
+                signal.alarm(0)  # 取消闹钟
     except Exception as e:
-        pass
+        print(f'昨日缓存失败：{e}', end=' ')
     
     # 行业板块数据失败时，基于今日龙虎榜和涨停板数据动态推断市场主线
     print('✅ 市场主线（龙虎榜 + 涨停板推断）')
