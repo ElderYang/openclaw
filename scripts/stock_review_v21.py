@@ -33,6 +33,21 @@ import pandas as pd
 from datetime import datetime, timedelta
 from pathlib import Path
 
+# ==================== 周末休市检查 ====================
+def is_weekend():
+    """检查是否是周末（周六=5，周日=6）"""
+    weekday = datetime.now().weekday()
+    return weekday >= 5
+
+def check_weekend_and_exit():
+    """如果是周末，打印提示并退出"""
+    if is_weekend():
+        print(f"⚠️ 今天是周末（{datetime.now().strftime('%Y-%m-%d %A')}），A 股休市，跳过执行")
+        sys.exit(0)
+
+# 执行周末检查
+check_weekend_and_exit()
+
 # ==================== 配置 VPN 代理（东方财富 API 专用） ====================
 VPN_PROXY = {
     'http': 'http://localhost:59852',
