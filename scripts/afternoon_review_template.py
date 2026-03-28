@@ -23,11 +23,16 @@ def generate_afternoon_review(data):
     # 📖 导读
     print("📖 导读")
     print("-"*80)
-    zt = data.get('limit_up', {})
-    lhb = data.get('longhubang', {})
+    zt = data.get('limit_up') or {}
+    lhb = data.get('longhubang') or {}
     
-    print(f"  • 涨停：{zt.get('total_count', 0)}家 | 连板：{zt.get('lianban_count', 0)}家 | 最高：{get_highest_lianban(zt)}")
-    print(f"  • 龙虎榜：{lhb.get('total_count', 0)}条 | 机构：{len(lhb.get('institutions', []))}家")
+    zt_count = zt.get('total_count', '待确认') if zt else '待确认'
+    lb_count = zt.get('lianban_count', '待确认') if zt else '待确认'
+    lhb_count = lhb.get('total_count', '待确认') if lhb else '待确认'
+    lhb_inst = len(lhb.get('institutions', [])) if lhb and isinstance(lhb.get('institutions'), list) else '待确认'
+    
+    print(f"  • 涨停：{zt_count}家 | 连板：{lb_count}家 | 最高：{get_highest_lianban(zt)}")
+    print(f"  • 龙虎榜：{lhb_count}条 | 机构：{lhb_inst}家")
     print(f"  • 焦点：{get_market_focus(data)}")
     print()
     

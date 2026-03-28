@@ -38,7 +38,7 @@ def generate_morning_report(data):
     a50 = us_indices.get('富时中国 A50') or {}
     
     # 计算外盘点评
-    a50_pct = a50.get('change_pct', 0)
+    a50_pct = a50.get('change_pct', 0) if a50 else 0
     if a50_pct > 0:
         a50_text = f"富时 A50 涨{a50_pct:.2f}%"
     elif a50_pct < 0:
@@ -48,9 +48,9 @@ def generate_morning_report(data):
     
     print("📖 导读")
     print("-"*80)
-    zt_count = zt.get('total_count', '待确认')
-    lb_count = zt.get('lianban_count', '待确认')
-    lhb_count = len(lhb.get('items', [])) if isinstance(lhb.get('items'), list) else '待确认'
+    zt_count = zt.get('total_count', '待确认') if zt else '待确认'
+    lb_count = zt.get('lianban_count', '待确认') if zt else '待确认'
+    lhb_count = len(lhb.get('items', [])) if lhb and isinstance(lhb.get('items'), list) else '待确认'
     print(f"  外盘：美股涨跌互现 {a50_text} | 涨停：{zt_count}家连板{lb_count}家 | 龙虎榜：{lhb_count} 条")
     print("  焦点：GAIC 全球人工智能大会 | 英伟达 GTC 大会 (3/16)")
     print()
