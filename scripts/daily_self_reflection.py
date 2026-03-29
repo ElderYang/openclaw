@@ -155,56 +155,98 @@ def generate_suggestions():
     
     return suggestions
 
+def get_git_stats():
+    """获取当天 Git 提交统计"""
+    import subprocess
+    today = datetime.now().strftime('%Y-%m-%d')
+    try:
+        result = subprocess.run(
+            ['git', '-C', str(WORKSPACE_DIR), 'log', '--oneline', '--since', today],
+            capture_output=True, text=True, timeout=10
+        )
+        commits = result.stdout.strip().split('\n') if result.stdout.strip() else []
+        return len(commits), commits
+    except:
+        return 0, []
+
+def get_task_status():
+    """获取定时任务状态（从日志文件）"""
+    log_dir = Path("/tmp/openclaw")
+    tasks = {
+        '天气预报': {'time': '7:00', 'log': 'weather.log', 'status': '⏰ 待检查'},
+        '股市早报': {'time': '7:30', 'log': 'stock-review.log', 'status': '⏰ 待检查'},
+        '小红书早报': {'time': '6:30', 'log': 'xiaohongshu-daily.log', 'status': '⏰ 待检查'},
+        '每日自省': {'time': '22:00', 'log': 'daily-self-reflection.log', 'status': '✅ 执行中'},
+    }
+    
+    today = datetime.now().strftime('%Y-%m-%d')
+    
+    for task_name, task_info in tasks.items():
+        log_file = log_dir / task_info['log']
+        if log_file.exists():
+            try:
+                content = log_file.read_text(encoding='utf-8', errors='ignore')
+                if today in content and '✅' in content:
+                    task_info['status'] = '✅ 已执行'
+                elif today in content and '❌' in content:
+                    task_info['status'] = '❌ 失败'
+            except:
+                pass
+    
+    return tasks
+
 def create_daily_memory():
-    """创建每日记忆文件"""
+    """创建每日记忆文件（自动填充内容）"""
     log("📝 创建每日记忆文件...")
     today = datetime.now()
-    memory_file = MEMORY_DIR / f"{today.strftime('%Y-%m-%d')}.md"
+    today_str = today.strftime('%Y-%m-%d')
+    memory_file = MEMORY_DIR / f"{today_str}.md"
     
     if memory_file.exists():
         log(f"✅ 今日记忆文件已存在：{memory_file}")
         return
+    
+    # 获取 Git 统计
+    git_count, git_commits = get_git_stats()
+    
+    # 获取定时任务状态
+    task_status = get_task_status()
     
     # 读取今天的纠正
     corrections_file = SELF_IMPROVING_DIR / "corrections.md"
     today_corrections = []
     if corrections_file.exists():
         content = corrections_file.read_text(encoding='utf-8')
-        today_str = today.strftime('%Y-%m-%d')
         if today_str in content:
             today_corrections = [today_str]
     
-    # 生成记忆文件内容
-    memory_content = f"""# 🦞 {today.strftime('%Y-%m-%d')} 记忆日志
+    # 生成 Git 提交列表
+    git_list = '\n'.join([f"- {c}" for c in git_commits[:5]]) if git_commits else "无提交"
+    
+    # 生成定时任务表格
+    task_table = '\n'.join([
+        f"| {name} | {info['time']} | {info['status']} |"
+        for name, info in task_status.items()
+    ])
+    
+    # 生成记忆文件内容（带实际数据）
+    memory_content = f"""# 🦞 {today_str} 记忆日志
 
 **创建时间**: {today.strftime('%Y-%m-%d %H:%M')}  
-**来源**: Self-Improving 系统
+**来源**: Self-Improving 系统（自动填充）
 
 ---
 
 ## 🔑 关键事件
 
-### 上午（7:00-12:00）
+### 自动统计
 
-*待补充*
+- **Git 提交**: {git_count} 个
+- **纠正记录**: {len(today_corrections)} 条
+- **定时任务**: {sum(1 for t in task_status.values() if '✅' in t['status'])}/{len(task_status)} 成功
 
----
-
-### 中午（12:00-14:00）
-
-*待补充*
-
----
-
-### 下午（14:00-18:00）
-
-*待补充*
-
----
-
-### 晚上（18:00-22:00）
-
-*待补充*
+### Git 提交
+{git_list}
 
 ---
 
@@ -212,16 +254,9 @@ def create_daily_memory():
 
 | 指标 | 数值 |
 |------|------|
-| 完成任务数 | 待统计 |
-| Git 提交数 | 待统计 |
-| 新创建文件 | 待统计 |
-| 问题修复 | 待统计 |
-
----
-
-## 💡 关键学习
-
-*待补充*
+| Git 提交数 | {git_count} |
+| 纠正记录 | {len(today_corrections)} |
+| 定时任务成功 | {sum(1 for t in task_status.values() if '✅' in t['status'])}/{len(task_status)} |
 
 ---
 
@@ -229,13 +264,13 @@ def create_daily_memory():
 
 | 任务 | 时间 | 状态 |
 |------|------|------|
-| 天气预报 | 7:00 | 待检查 |
-| 股市早报 | 7:30 | 待检查 |
-| 小红书早报 | 6:30 | 待检查 |
-| 手机行业日报 | 9:00 | 待检查 |
-| 小红书午报 | 12:30 | 待检查 |
-| 小红书晚报 | 20:00 | 待检查 |
-| 每日自省 | 22:00 | ✅ 执行中 |
+{task_table}
+
+---
+
+## 💡 关键学习
+
+*待补充（如有纠正会自动记录）*
 
 ---
 
@@ -244,7 +279,7 @@ def create_daily_memory():
     
     MEMORY_DIR.mkdir(parents=True, exist_ok=True)
     memory_file.write_text(memory_content, encoding='utf-8')
-    log(f"✅ 已创建每日记忆文件：{memory_file}")
+    log(f"✅ 已创建每日记忆文件：{memory_file}（自动填充 {git_count} 个提交）")
 
 def update_heartbeat_state():
     """更新心跳状态"""
