@@ -68,6 +68,12 @@ curl -X POST "https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=op
 
 ## 📕 小红书发布流程（重要！）
 
+### 登录状态
+- **账号**：助手小杨
+- **Cookies 位置**：`~/.openclaw/workspace/skills/xiaohongshu-mcp/cookies.json`
+- **有效期**：2027-03-29（364 天）
+- **状态**：✅ 已登录，无需重复扫码
+
 ### 发布命令（必须记住！）
 ```bash
 # 1. 启动 MCP 服务器
@@ -80,6 +86,13 @@ python3 scripts/xhs_client.py status
 # 3. 发布笔记
 python3 scripts/xhs_client.py publish "标题" "内容" "图片路径 1，图片路径 2..."
 ```
+
+### 定时任务
+| 任务 | 时间 | 状态 | 最近发布 |
+|------|------|------|----------|
+| AI 科技日报 | 6:30 | ✅ 自动发布 | - |
+| OpenClaw 实战 | 12:30 | ✅ 自动发布 | 2026-03-29《定时任务完全指南》 |
+| AI 变现指南 | 20:00 | ✅ 自动发布 | - |
 
 ---
 
