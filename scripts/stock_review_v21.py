@@ -513,11 +513,17 @@ def get_indices_data():
         # 【2】东方财富 API（快速备用，HTTP 协议 + VPN）
         try:
             # 使用 HTTP 而非 HTTPS（LetsVPN 代理不支持 HTTPS 隧道）
+            # f43: 当前点位，f170: 昨收
             url = f'http://push2.eastmoney.com/api/qt/stock/get?secid={codes["em"]}&fields=f43,f170'
             r = get_requests_session(use_vpn=True).get(url, timeout=TIMEOUT)
             d = r.json().get('data', {})
             if d and d.get('f43'):
                 em_val = d.get('f43', 0) / 100
+                # 计算涨跌幅：(当前 - 昨收) / 昨收 * 100
+                if d.get('f170') and d['f170'] != 0:
+                    em_pct = ((d.get('f43', 0) - d.get('f170', 0)) / d.get('f170', 1)) * 100
+                    if ts_pct is None:  # Tushare 失败时使用东方财富的涨跌幅
+                        ts_pct = round(em_pct, 2)
         except Exception as e:
             pass
         
