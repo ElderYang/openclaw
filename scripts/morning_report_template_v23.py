@@ -50,7 +50,10 @@ def save_today_prediction(prediction):
 
 def generate_one_sentence_summary(data):
     """一句话导读（30 字内）"""
-    # 从 v21 数据结构获取
+    # 从 v21 数据结构获取（增强 None 保护）
+    if not data:
+        return "数据暂缺，请稍后查看"
+    
     us_indices = data.get("us_indices") or {}
     nasdaq = us_indices.get("纳斯达克") or {}
     a50 = us_indices.get("富时中国 A50") or {}
@@ -344,10 +347,18 @@ def generate_yesterday_prediction_section(data):
 def generate_morning_report_v23(data):
     """生成 v23.0 优化版早报"""
     
-    # 保存今日预测（供明日验证）
+    # 保存今日预测（供明日验证）- 增强 None 保护
+    if data and isinstance(data, dict):
+        indices = data.get('indices') or {}
+        shanghai = indices.get('上证指数') or {}
+        pct_chg = shanghai.get('pct_chg', 0) or 0
+        prediction_text = f"预计 A 股{pct_chg:+.1f}%"
+    else:
+        prediction_text = "预计 A 股走势待确认"
+    
     today_prediction = {
         "date": datetime.now().strftime("%Y-%m-%d"),
-        "prediction": f"预计 A 股{data.get('indices', {}).get('上证指数', {}).get('pct_chg', 0):+.1f}%"
+        "prediction": prediction_text
     }
     save_today_prediction(today_prediction)
     

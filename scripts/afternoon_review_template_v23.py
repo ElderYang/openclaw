@@ -19,6 +19,9 @@ from datetime import datetime
 
 def generate_one_sentence_summary(data):
     """一句话总结"""
+    if not data or not isinstance(data, dict):
+        return "数据暂缺，请稍后查看"
+    
     indices = data.get("indices") or {}
     sh = indices.get("上证指数") or {}
     pct = sh.get("pct_chg", 0) or 0
@@ -43,6 +46,9 @@ def generate_one_sentence_summary(data):
 
 def generate_market_overview(data):
     """【1】市场概览"""
+    if not data:
+        return "【1】市场概览\n数据暂缺"
+    
     indices = data.get("indices") or {}
     margin = data.get("margin") or {}
     
@@ -50,15 +56,19 @@ def generate_market_overview(data):
     
     # 指数
     lines.append("📊 主要指数收盘：")
-    for name, d in indices.items():
-        pct = d.get("pct_chg", 0) or 0
-        close_val = d.get("close", 0)
-        trend = "🔺" if pct > 0 else "🔻" if pct < 0 else "➖"
-        lines.append(f"  {trend} {name:12s}: {close_val:>10,.2f} ({pct:>+6.2f}%)")
+    if indices:
+        for name, d in indices.items():
+            if d:
+                pct = d.get("pct_chg", 0) or 0
+                close_val = d.get("close", 0)
+                trend = "🔺" if pct > 0 else "🔻" if pct < 0 else "➖"
+                lines.append(f"  {trend} {name:12s}: {close_val:>10,.2f} ({pct:>+6.2f}%)")
+    else:
+        lines.append("  数据待确认")
     
     # 融资融券
     lines.append("\n💰 融资融券：")
-    if margin.get("balance"):
+    if margin and margin.get("balance"):
         lines.append(f"  融资余额：{margin['balance']:.2f}亿元")
         lines.append(f"  日变化：{margin.get('change', 0):+.2f}亿元")
     else:
