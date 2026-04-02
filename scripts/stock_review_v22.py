@@ -693,8 +693,9 @@ def get_holdings_data():
             try:
                 qv_item = qveris_data[i][0] if qveris_data[i] else None
                 if qv_item:
-                    qv_val = float(qv_item.get('latest', 0))
-                    qv_pct = float(qv_item.get('changeRatio', 0))
+                    # 修复字段名：QVeris 返回的是中文
+                    qv_val = float(qv_item.get('最新价', 0))
+                    qv_pct = float(qv_item.get('涨跌幅', 0))
             except:
                 pass
         
