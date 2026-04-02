@@ -480,21 +480,22 @@ def validate_with_sources(primary, secondary, tertiary=None, threshold=0.05):
 # ==================== 数据获取函数 ====================
 
 def get_indices_data():
-    """获取 A 股指数数据（Tushare 优先 + 东方财富 API）- 移除 AkShare 避免卡顿"""
+    """获取 A 股指数数据（Tushare 优先 + 东方财富 API + Yahoo Finance 备用）"""
     print('\n【1】指数数据', end=' ')
     start = time.time()
     
     indices = {
-        '上证指数': {'ts': '000001.SH', 'em': '1.000001'},
-        '深证成指': {'ts': '399001.SZ', 'em': '0.399001'},
-        '创业板指': {'ts': '399006.SZ', 'em': '0.399006'},
-        '科创 50': {'ts': '000688.SH', 'em': '1.000688'},
+        '上证指数': {'ts': '000001.SH', 'em': '1.000001', 'yahoo': '000001.SS'},
+        '深证成指': {'ts': '399001.SZ', 'em': '0.399001', 'yahoo': '399001.SZ'},
+        '创业板指': {'ts': '399006.SZ', 'em': '0.399006', 'yahoo': '399006.SZ'},
+        '科创 50': {'ts': '000688.SH', 'em': '1.000688', 'yahoo': '000688.SS'},
     }
     
     results = {}
     for name, codes in indices.items():
         ts_val, ts_src = None, 'Tushare'
         em_val, em_src = None, '东方财富 API'
+        yahoo_val, yahoo_src = None, 'Yahoo Finance'
         ts_pct = None
         
         # 【1】Tushare 数据（优先，API 稳定）
@@ -510,33 +511,91 @@ def get_indices_data():
         except Exception as e:
             print(f'(Tushare 失败:{e})', end=' ')
         
-        # 【2】东方财富 API（快速备用，HTTP 协议 + VPN）
+        # 【2】东方财富 API（直连，HTTP 协议）
         try:
-            # 使用 HTTP 而非 HTTPS（LetsVPN 代理不支持 HTTPS 隧道）
-            # f43: 当前点位，f49: 涨跌幅（直接返回，无需计算）
-            url = f'http://push2.eastmoney.com/api/qt/stock/get?secid={codes["em"]}&fields=f43,f49'
-            r = get_requests_session(use_vpn=True).get(url, timeout=TIMEOUT)
+            # 使用 HTTP 而非 HTTPS（东方财富 HTTP API 可直接访问）
+            # f43: 当前点位，f49: 涨跌幅（%），f170: 昨收
+            url = f'http://push2.eastmoney.com/api/qt/stock/get?secid={codes["em"]}&fields=f43,f49,f170'
+            r = requests.get(url, timeout=TIMEOUT)  # 直连，不用 VPN
             d = r.json().get('data', {})
             if d and d.get('f43'):
                 em_val = d.get('f43', 0) / 100
-                # 直接获取涨跌幅（f49 已经是百分比）
+                # 优先使用 f49（东方财富直接返回的涨跌幅%）
                 if d.get('f49') is not None:
                     em_pct = float(d.get('f49', 0))
-                    if ts_pct is None:  # Tushare 失败时使用东方财富的涨跌幅
-                        ts_pct = em_pct
+                    ts_pct = em_pct  # 直接使用东方财富的涨跌幅
+                # 如果 f49 不可用，手动计算涨跌幅
+                elif d.get('f170') and d.get('f43'):
+                    close = d['f43'] / 100
+                    yesterday = d['f170'] / 100
+                    em_pct = ((close - yesterday) / yesterday) * 100
+                    ts_pct = em_pct
         except Exception as e:
-            pass
+            print(f'(东方财富失败:{e})', end=' ')
         
-        # 双源校验
-        sources = [(ts_val, ts_src), (em_val, em_src)]
-        valid_sources = [(v, s) for v, s in sources if v is not None]
+        # 【3】Yahoo Finance 备用（网络较好）
+        try:
+            import yfinance as yf
+            ticker = yf.Ticker(codes['yahoo'])
+            info = ticker.info
+            hist = ticker.history(period='1d')  # 只需今天的数据
+            if len(hist) >= 1 and info.get('previousClose'):
+                close = float(hist['Close'].iloc[-1])
+                prev_close = float(info.get('previousClose'))  # 使用 official previous close
+                yahoo_val = close
+                yahoo_pct = ((close - prev_close) / prev_close) * 100
+                ts_pct = yahoo_pct  # 使用 Yahoo 的涨跌幅
+                print(f'[Yahoo:{name} {yahoo_val:.2f} {yahoo_pct:+.2f}%]', end=' ')
+            elif len(hist) >= 1:
+                # 没有 previousClose，只有今天的数据
+                yahoo_val = float(hist['Close'].iloc[-1])
+                print(f'[Yahoo:{name} {yahoo_val:.2f} 无昨收]', end=' ')
+            else:
+                print(f'[Yahoo:{name} 无数据]', end=' ')
+        except Exception as e:
+            print(f'[Yahoo 失败:{e}]', end=' ')
+        
+        # 三源校验 + 严格数据质量检查
+        sources = [(ts_val, ts_src), (em_val, em_src), (yahoo_val, yahoo_src)]
+        # 过滤掉 None 和 0 值（0 表示数据获取失败）
+        valid_sources = [(v, s) for v, s in sources if v is not None and v > 0]
+        
+        # 严格校验：数据必须在合理范围内
+        def is_valid_index_data(close, pct_chg, name):
+            """校验指数数据是否合理"""
+            if close is None or close <= 0:
+                return False, "点位为 0 或负数"
+            if pct_chg is None:
+                return False, "涨跌幅为空"
+            # 指数点位合理性检查（上证指数 2000-5000，创业板 1500-4000，科创 50 800-2000）
+            if name == '上证指数' and not (2000 < close < 5000):
+                return False, f"点位异常 {close}"
+            if name == '深证成指' and not (8000 < close < 20000):
+                return False, f"点位异常 {close}"
+            if name == '创业板指' and not (1500 < close < 4000):
+                return False, f"点位异常 {close}"
+            if name == '科创 50' and not (800 < close < 2000):
+                return False, f"点位异常 {close}"
+            # 涨跌幅合理性检查（A 股±12% 以内）
+            if not (-12 < pct_chg < 12):
+                return False, f"涨跌幅异常 {pct_chg}%"
+            return True, "OK"
         
         if len(valid_sources) >= 1:
             val = valid_sources[0][0]
             source_names = '+'.join([s for v, s in valid_sources])
-            results[name] = {'close': val, 'pct_chg': ts_pct, 'source': source_names, 'validated': len(valid_sources) >= 2}
+            
+            # 严格数据校验
+            is_valid, msg = is_valid_index_data(val, ts_pct, name)
+            if not is_valid:
+                print(f'[⚠️ {name} 数据异常：{msg}]', end=' ')
+                # 数据异常时标记为未验证，但不阻止发送（在发送前统一检查）
+                results[name] = {'close': val, 'pct_chg': ts_pct, 'source': source_names, 'validated': False, 'warning': msg}
+            else:
+                results[name] = {'close': val, 'pct_chg': ts_pct, 'source': source_names, 'validated': len(valid_sources) >= 2}
         else:
-            results[name] = {'close': 0, 'pct_chg': 0, 'source': '待确认', 'validated': False}
+            print(f'[❌ {name} 无有效数据]', end=' ')
+            results[name] = {'close': 0, 'pct_chg': 0, 'source': '待确认', 'validated': False, 'error': '所有数据源失败'}
     
     elapsed = time.time() - start
     validated_count = sum(1 for v in results.values() if v.get('validated'))
@@ -1512,10 +1571,23 @@ def get_limit_up_data():
             if len(df) > 0:
                 lianban = df[df['连板数'] > 1].sort_values('连板数', ascending=False) if '连板数' in df.columns else pd.DataFrame()
                 
+                # 涨停股详情列表（包含板块信息，供 v22 增强模块使用）
+                zt_list = []
+                for _, row in df.iterrows():
+                    zt_list.append({
+                        'name': row.get('名称', ''),
+                        'code': row.get('代码', ''),
+                        'sector': row.get('所属行业', '其他'),
+                        'boards': row.get('连板数', 1),
+                        'time': row.get('最后封板时间', ''),
+                        'money': row.get('封板资金', 0)
+                    })
+                
                 result = {
                     'total_count': len(df),
                     'lianban_count': len(lianban),
                     'top_lianban': lianban.head(10)[['名称', '最新价', '涨跌幅', '连板数', '封板资金']].to_dict('records') if len(lianban) > 0 else [],
+                    'zt_list': zt_list,  # v22 增强：涨停股详情
                     'date': date,
                     'source': '东方财富 API',
                     'data_type': '收盘' if date == yesterday or current_hour >= 15 else '盘中'
@@ -1892,6 +1964,60 @@ def main():
     theme_analysis = get_market_theme_analysis(industry, holdings, longhubang)
     overnight_news = get_overnight_news(us_indices)  # 新增：基于美股数据 AI 分析
     
+    # ==================== v22.0 增强数据（新增！） ====================
+    print("\n" + "="*60)
+    print("v22.0 增强数据获取")
+    print("="*60)
+    
+    # 加载持仓配置
+    holdings_config_file = Path(__file__).parent / "data" / "holdings_config.json"
+    holdings_config = {}
+    if holdings_config_file.exists():
+        with open(holdings_config_file, "r", encoding="utf-8") as f:
+            holdings_config = json.load(f)
+        print(f"✅ 持仓配置已加载：{len(holdings_config.get('holdings', []))}只")
+    else:
+        print("⚠️ 持仓配置文件不存在，使用默认配置")
+    
+    # 导入 v22 增强取数模块
+    try:
+        from v22_enhanced_data import (
+            get_holdings_us_benchmark,
+            get_zt_sector_distribution,
+            get_famous_youzi,
+            get_market_volume,
+            get_zt_change_data,
+            get_zhaban_rate,
+        )
+        
+        # 获取美股对标数据
+        us_benchmark_data = get_holdings_us_benchmark(holdings_config)
+        
+        # 涨停股板块分布
+        zt_sector_dist = get_zt_sector_distribution(limit_up)
+        
+        # 知名游资席位
+        famous_youzi = get_famous_youzi(longhubang)
+        
+        # 市场成交量
+        market_volume = get_market_volume()
+        
+        # 涨停家数变化
+        zt_change_data = get_zt_change_data()
+        
+        # 炸板率
+        zhaban_rate = get_zhaban_rate(limit_up)
+        
+    except Exception as e:
+        print(f"❌ v22 增强数据加载失败：{e}")
+        us_benchmark_data = {}
+        zt_sector_dist = {}
+        famous_youzi = []
+        market_volume = {}
+        zt_change_data = {}
+        zhaban_rate = 25.0
+    # ==================== v22.0 增强数据结束 ====================
+    
     data = {
         'indices': indices,
         'holdings': holdings,
@@ -1902,6 +2028,14 @@ def main():
         'limit_up': limit_up,
         'theme_analysis': theme_analysis,
         'overnight_news': overnight_news,
+        # v22.0 增强数据
+        'holdings_config': holdings_config,
+        'us_benchmark_data': us_benchmark_data,
+        'zt_sector_dist': zt_sector_dist,
+        'famous_youzi': famous_youzi,
+        'market_volume': market_volume,
+        'zt_change_data': zt_change_data,
+        'zhaban_rate': zhaban_rate,
     }
     
     total_time = time.time() - total_start
@@ -1913,6 +2047,34 @@ def main():
     print(f"数据获取完成")
     print(f"总执行时间：{total_time:.1f}秒（目标<120 秒）")
     print("="*60)
+    
+    # 【关键】发送前数据质量检查
+    print("\n【数据质量检查】")
+    data_quality_ok = True
+    indices = data.get('indices', {})
+    for name, d in indices.items():
+        close = d.get('close', 0)
+        pct_chg = d.get('pct_chg', 0)
+        warning = d.get('warning')
+        error = d.get('error')
+        
+        if close == 0 or error:
+            print(f"  ❌ {name}: 数据获取失败 ({error or '点位为 0'})")
+            data_quality_ok = False
+        elif warning:
+            print(f"  ⚠️ {name}: {warning} (close={close:.2f}, pct={pct_chg:.2f}%)")
+            # 数据异常时不阻止发送，但记录警告
+        else:
+            print(f"  ✅ {name}: {close:.2f} ({pct_chg:+.2f}%)")
+    
+    if not data_quality_ok:
+        print("\n❌ 数据质量检查失败！放弃发送报告。")
+        print("请检查数据源或手动排查问题。")
+        # 不发送报告，直接退出
+        return
+    
+    print("\n✅ 数据质量检查通过，继续生成报告...\n")
+    
     print("\n✅ 脚本执行完成！报告将发送到飞书...\n")
     
     # 根据时间调用不同的模板（早报 or 复盘）
@@ -1937,40 +2099,42 @@ def main():
     current_hour = datetime.now().hour
     print(f"当前时间：{current_hour}点，调用模板判断...\n")
     
-    # 早上 5 点 -12 点：生成早报
+    # 早上 5 点 -12 点：生成早报（恢复原版标准模板 v1.1）
     if 5 <= current_hour < 12:
-        print("→ 调用早报模板\n")
+        print("→ 调用早报模板 原版标准模板 v1.1\n")
         try:
             from morning_report_template import generate_morning_report
-            f = io.StringIO()
-            with redirect_stdout(f):
+            # 原版模板用 print() 输出，需要捕获
+            output = io.StringIO()
+            with redirect_stdout(output):
                 generate_morning_report(data)
-            report_text = f.getvalue()
+            report_text = output.getvalue()
             if report_text and len(report_text) > 500:
-                print("\n✅ 标准格式早报生成成功！(v1.0)")
+                print("\n✅ 原版早报生成成功！")
                 template_success = True
             else:
                 print(f"⚠️ 早报模板返回内容为空或太短 (len={len(report_text) if report_text else 0})")
         except Exception as e:
-            print(f"❌ 早报模板调用失败：{e}")
+            print(f"❌ 原版早报模板调用失败：{e}")
             import traceback
             traceback.print_exc()
-    # 其他时间：生成复盘报告
+    # 其他时间：生成复盘报告（原版模板，v22.0 调试中）
     else:
-        print("→ 调用复盘模板\n")
+        print("→ 调用复盘模板 原版（v22.0 调试中）\n")
         try:
             from afternoon_review_template import generate_afternoon_review
-            f = io.StringIO()
-            with redirect_stdout(f):
+            # 原版模板用 print() 输出，需要捕获
+            output = io.StringIO()
+            with redirect_stdout(output):
                 generate_afternoon_review(data)
-            report_text = f.getvalue()
+            report_text = output.getvalue()
             if report_text and len(report_text) > 500:
-                print("\n✅ 标准格式复盘报告生成成功！(v2.0 专业版)")
+                print("\n✅ 原版复盘报告生成成功！")
                 template_success = True
             else:
                 print(f"⚠️ 复盘模板返回内容为空或太短 (len={len(report_text) if report_text else 0})")
         except Exception as e:
-            print(f"❌ 复盘模板调用失败：{e}")
+            print(f"❌ 原版复盘模板调用失败：{e}")
             import traceback
             traceback.print_exc()
     
