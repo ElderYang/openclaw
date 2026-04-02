@@ -1,0 +1,94 @@
+{
+  "holdings": [
+    {
+      "name": "三花智控",
+      "code": "002050",
+      "cost": 25.00,
+      "target": 32.00,
+      "stop_loss": 27.00,
+      "us_benchmark": "TSLA",
+      "us_benchmark_name": "特斯拉",
+      "today_focus": "特斯拉财报今晚",
+      "strategy": "持有观望"
+    },
+    {
+      "name": "兆易创新",
+      "code": "603986",
+      "cost": 88.00,
+      "target": 105.00,
+      "stop_loss": 90.00,
+      "us_benchmark": "MU",
+      "us_benchmark_name": "美光科技",
+      "today_focus": "存储芯片涨价持续",
+      "strategy": "持有✅"
+    },
+    {
+      "name": "蓝色光标",
+      "code": "300058",
+      "cost": 10.50,
+      "target": 13.50,
+      "stop_loss": 11.00,
+      "us_benchmark": "GOOGL",
+      "us_benchmark_name": "谷歌",
+      "today_focus": "AI 营销大会今天",
+      "strategy": "重点关注✅"
+    },
+    {
+      "name": "长电科技",
+      "code": "600584",
+      "cost": 38.00,
+      "target": 45.00,
+      "stop_loss": 36.00,
+      "us_benchmark": "ASML",
+      "us_benchmark_name": "阿斯麦",
+      "today_focus": "芯片封测需求稳定",
+      "strategy": "持有"
+    },
+    {
+      "name": "科创 50ETF",
+      "code": "588000",
+      "cost": 1.10,
+      "target": 1.35,
+      "stop_loss": 1.15,
+      "us_benchmark": "QQQ",
+      "us_benchmark_name": "纳斯达克 100ETF",
+      "today_focus": "科创板一季报披露",
+      "strategy": "定投/持有"
+    },
+    {
+      "name": "半导体设备 ETF",
+      "code": "159516",
+      "cost": 1.50,
+      "target": 1.80,
+      "stop_loss": 1.55,
+      "us_benchmark": "SMH",
+      "us_benchmark_name": "半导体 ETF",
+      "today_focus": "国产替代加速",
+      "strategy": "持有"
+    },
+    {
+      "name": "电网设备 ETF",
+      "code": "159326",
+      "cost": 1.20,
+      "target": 1.45,
+      "stop_loss": 1.25,
+      "us_benchmark": "XLE",
+      "us_benchmark_name": "能源 ETF",
+      "today_focus": "电力设备出海",
+      "strategy": "持有✅"
+    },
+    {
+      "name": "润泽科技",
+      "code": "300442",
+      "cost": 28.00,
+      "target": 35.00,
+      "stop_loss": 26.00,
+      "us_benchmark": "EQIX",
+      "us_benchmark_name": "Equinix",
+      "today_focus": "AI 算力需求",
+      "strategy": "持有"
+    }
+  ],
+  "risk_preference": "balanced",
+  "default_position": 0.65
+}
