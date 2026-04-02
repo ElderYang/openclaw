@@ -2172,60 +2172,6 @@ def main():
         print("\n⚠️ 模板生成失败，未发送报告")
         print("请检查模板文件或手动执行：python3 morning_report_template_v24.py 或 afternoon_review_template_v24.py")
     
-    # ==================== 并行测试：发送原版报告对比 ====================
-    # 优化版报告已发送，现在发送原版报告作为对比（晚 15 分钟）
-    # 早报用原版 v1.1，复盘用原版 v2.0
-    print("\n" + "="*60)
-    print("并行测试：生成原版报告作为对比...")
-    print("="*60)
-    
-    original_report_text = ""
-    original_template_success = False
-    
-    if 5 <= current_hour < 12:
-        # 早报原版
-        print("→ 生成原版早报 v1.1 用于对比\n")
-        try:
-            from morning_report_template import generate_morning_report
-            output = io.StringIO()
-            with redirect_stdout(output):
-                generate_morning_report(data)
-            original_report_text = output.getvalue()
-            if original_report_text and len(original_report_text) > 500:
-                print("\n✅ 原版早报生成成功！")
-                original_template_success = True
-        except Exception as e:
-            print(f"❌ 原版早报生成失败：{e}")
-    else:
-        # 复盘原版
-        print("→ 生成原版复盘 v2.0 用于对比\n")
-        try:
-            from afternoon_review_template import generate_afternoon_review
-            output = io.StringIO()
-            with redirect_stdout(output):
-                generate_afternoon_review(data)
-            original_report_text = output.getvalue()
-            if original_report_text and len(original_report_text) > 500:
-                print("\n✅ 原版复盘生成成功！")
-                original_template_success = True
-        except Exception as e:
-            print(f"❌ 原版复盘生成失败：{e}")
-    
-    # 发送原版报告
-    if original_template_success and original_report_text:
-        print("\n📤 发送原版报告到飞书（对比用）...")
-        # 修改标题，避免混淆
-        original_report_text = original_report_text.replace("股市早报", "股市早报 v21（原版对比）")
-        original_report_text = original_report_text.replace("A 股复盘", "A 股复盘 v21（原版对比）")
-        
-        send_success = send_to_feishu(original_report_text)
-        if send_success:
-            print("✅ 原版报告已发送到飞书（对比用）")
-        else:
-            print("❌ 原版报告发送失败")
-    else:
-        print("\n⚠️ 原版报告生成失败，跳过发送")
-    
     # 完成通知（解决"没动静"问题）
     end_time = datetime.now()
     print(f"\n{'='*60}")

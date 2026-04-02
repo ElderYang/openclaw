@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.openclaw.stock-report-optimized</string>
+    
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/bin/python3</string>
+        <string>/Users/yangbowen/.openclaw/workspace/scripts/stock_review_v22.py</string>
+    </array>
+    
+    <key>WorkingDirectory</key>
+    <string>/Users/yangbowen/.openclaw/workspace/scripts</string>
+    
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <key>PYTHONPATH</key>
+        <string>/Users/yangbowen/.openclaw/workspace/scripts</string>
+        <key>TUSHARE_TOKEN</key>
+        <string>7fd1efd594f9a1f70bd876707eabb60faa4bf658d6070056b3278e73</string>
+    </dict>
+    
+    <key>StartCalendarInterval</key>
+    <array>
+        <!-- 股市早报优化版：周一至周五 7:45（比原版晚 15 分钟） -->
+        <dict><key>Weekday</key><integer>1</integer><key>Hour</key><integer>7</integer><key>Minute</key><integer>45</integer></dict>
+        <dict><key>Weekday</key><integer>2</integer><key>Hour</key><integer>7</integer><key>Minute</key><integer>45</integer></dict>
+        <dict><key>Weekday</key><integer>3</integer><key>Hour</key><integer>7</integer><key>Minute</key><integer>45</integer></dict>
+        <dict><key>Weekday</key><integer>4</integer><key>Hour</key><integer>7</integer><key>Minute</key><integer>45</integer></dict>
+        <dict><key>Weekday</key><integer>5</integer><key>Hour</key><integer>7</integer><key>Minute</key><integer>45</integer></dict>
+        <!-- A 股复盘优化版：周一至周五 17:45（比原版晚 15 分钟） -->
+        <dict><key>Weekday</key><integer>1</integer><key>Hour</key><integer>17</integer><key>Minute</key><integer>45</integer></dict>
+        <dict><key>Weekday</key><integer>2</integer><key>Hour</key><integer>17</integer><key>Minute</key><integer>45</integer></dict>
+        <dict><key>Weekday</key><integer>3</integer><key>Hour</key><integer>17</integer><key>Minute</key><integer>45</integer></dict>
+        <dict><key>Weekday</key><integer>4</integer><key>Hour</key><integer>17</integer><key>Minute</key><integer>45</integer></dict>
+        <dict><key>Weekday</key><integer>5</integer><key>Hour</key><integer>17</integer><key>Minute</key><integer>45</integer></dict>
+    </array>
+    
+    <key>StandardOutPath</key>
+    <string>/tmp/openclaw/stock-review-optimized.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/openclaw/stock-review-optimized-error.log</string>
+    <key>ProcessType</key>
+    <string>Background</string>
+</dict>
+</plist>
