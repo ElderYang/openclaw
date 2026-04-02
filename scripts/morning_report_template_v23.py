@@ -69,25 +69,37 @@ def generate_one_sentence_summary(data):
 
 
 def generate_overnight_news_section(data):
-    """【0】隔夜大事（3 条以内，事件→影响→板块）"""
+    """【0】隔夜大事（3 条以内，事件→影响→板块）
+    
+    注意：如果 news_list 为空或只有固定模板消息，说明 API 获取失败
+    此时返回简化版，避免显示过时的"美联储降息"等假消息
+    """
     news_list = data.get("overnight_news") or []
-    if not news_list:
-        return "【0】隔夜大事\n暂无重大消息"
+    
+    # 检测是否是固定模板消息（说明 API 获取失败）
+    template_keywords = ['美联储利率决策临近', '黄金价格震荡', '地缘局势影响能源']
+    is_template = any(any(kw in (n.get('title','') or '') for kw in template_keywords) for n in news_list)
+    
+    if not news_list or is_template:
+        # API 获取失败，返回简化版（不显示假消息）
+        return "【0】隔夜大事\n暂无最新数据（网络限制，建议手动查看财联社/华尔街见闻）"
     
     lines = ["【0】隔夜大事（只说跟 A 股有关的）"]
     for news in news_list[:3]:
         title = news.get('title', '')
         snippet = news.get('snippet', '')
         # 简单提取影响和板块
-        impact = "影响 A 股"
-        sector = "相关板块"
-        if any(kw in title.lower() for kw in ['ai', '芯片', '科技']):
+        if any(kw in title.lower() for kw in ['ai', '芯片', '科技', '英伟达', '特斯拉']):
             sector = "→ 科技/AI"
-        elif any(kw in title.lower() for kw in ['美联储', '利率', '通胀']):
+        elif any(kw in title.lower() for kw in ['美联储', '利率', '通胀', 'CPI']):
             sector = "→ 宏观/金融"
-        elif any(kw in title.lower() for kw in ['石油', '能源']):
-            sector = "→ 能源"
-        lines.append(f"• {title[:40]} {sector}")
+        elif any(kw in title.lower() for kw in ['石油', '能源', '黄金', '原油']):
+            sector = "→ 大宗商品"
+        elif any(kw in title.lower() for kw in ['中东', '地缘', '战争']):
+            sector = "→ 地缘政治"
+        else:
+            sector = "→ 市场动态"
+        lines.append(f"• {title[:50]} {sector}")
     return "\n".join(lines)
 
 
