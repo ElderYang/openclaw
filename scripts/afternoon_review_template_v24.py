@@ -17,14 +17,24 @@ from datetime import datetime
 import json
 import os
 
-# 配置文件路径
-HOLDINGS_CONFIG_FILE = os.path.expanduser("~/.openclaw/workspace/data/holdings_config.json")
+# 配置文件路径（使用绝对路径，避免工作目录问题）
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+WORKSPACE_DIR = os.path.join(SCRIPT_DIR, '..')
+HOLDINGS_CONFIG_FILE = os.path.join(WORKSPACE_DIR, 'data', 'holdings_config.json')
+
+# 备用路径（兼容直接调用）
+HOLDINGS_CONFIG_FILE_ALT = os.path.expanduser("~/.openclaw/workspace/data/holdings_config.json")
 
 
 def load_holdings_config():
     """加载持仓配置"""
+    # 尝试主路径
     if os.path.exists(HOLDINGS_CONFIG_FILE):
         with open(HOLDINGS_CONFIG_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    # 尝试备用路径
+    if os.path.exists(HOLDINGS_CONFIG_FILE_ALT):
+        with open(HOLDINGS_CONFIG_FILE_ALT, "r", encoding="utf-8") as f:
             return json.load(f)
     return None
 

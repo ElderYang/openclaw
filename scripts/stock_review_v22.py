@@ -1969,15 +1969,25 @@ def main():
     print("v22.0 增强数据获取")
     print("="*60)
     
-    # 加载持仓配置
-    holdings_config_file = Path(__file__).parent / "data" / "holdings_config.json"
+    # 加载持仓配置（使用绝对路径）
+    workspace_dir = Path(__file__).parent.parent
+    holdings_config_file = workspace_dir / "data" / "holdings_config.json"
     holdings_config = {}
     if holdings_config_file.exists():
         with open(holdings_config_file, "r", encoding="utf-8") as f:
             holdings_config = json.load(f)
         print(f"✅ 持仓配置已加载：{len(holdings_config.get('holdings', []))}只")
     else:
-        print("⚠️ 持仓配置文件不存在，使用默认配置")
+        print(f"⚠️ 持仓配置文件不存在：{holdings_config_file}")
+        print(f"   尝试备用路径：{Path.home() / '.openclaw' / 'workspace' / 'data' / 'holdings_config.json'}")
+        # 尝试备用路径
+        alt_config_file = Path.home() / ".openclaw" / "workspace" / "data" / "holdings_config.json"
+        if alt_config_file.exists():
+            with open(alt_config_file, "r", encoding="utf-8") as f:
+                holdings_config = json.load(f)
+            print(f"✅ 备用路径加载成功：{len(holdings_config.get('holdings', []))}只")
+        else:
+            print("⚠️ 持仓配置文件不存在，使用默认配置")
     
     # 导入 v22 增强取数模块
     try:
@@ -2099,62 +2109,56 @@ def main():
     current_hour = datetime.now().hour
     print(f"当前时间：{current_hour}点，调用模板判断...\n")
     
-    # 早上 5 点 -12 点：生成早报（v23.0 优化版 - 复用 v21 取数逻辑）
+    # 早上 5 点 -12 点：生成早报（v24.0 深度优化版）
     if 5 <= current_hour < 12:
-        print("→ 调用早报模板 v23.0 优化版（复用 v21 数据结构）\n")
+        print("→ 调用早报模板 v24.0 深度优化版\n")
         try:
-            from morning_report_template_v23 import generate_morning_report_v23
-            report_text = generate_morning_report_v23(data)
+            from morning_report_template_v24 import generate_morning_report_v24
+            report_text = generate_morning_report_v24(data)
             if report_text and len(report_text) > 500:
-                print("\n✅ v23.0 优化版早报生成成功！")
+                print("\n✅ v24.0 深度优化版早报生成成功！")
                 template_success = True
             else:
-                print(f"⚠️ v23.0 早报模板返回内容为空或太短 (len={len(report_text) if report_text else 0})")
+                print(f"⚠️ v24.0 早报模板返回内容为空或太短 (len={len(report_text) if report_text else 0})")
         except Exception as e:
-            print(f"❌ v23.0 早报模板调用失败：{e}")
+            print(f"❌ v24.0 早报模板调用失败：{e}")
             import traceback
             traceback.print_exc()
-            # 降级到原版模板
-            print("→ 降级到原版标准模板 v1.1\n")
+            # 降级到 v23 模板
+            print("→ 降级到 v23.0 模板\n")
             try:
-                from morning_report_template import generate_morning_report
-                output = io.StringIO()
-                with redirect_stdout(output):
-                    generate_morning_report(data)
-                report_text = output.getvalue()
+                from morning_report_template_v23 import generate_morning_report_v23
+                report_text = generate_morning_report_v23(data)
                 if report_text and len(report_text) > 500:
-                    print("\n✅ 原版早报生成成功！（降级）")
+                    print("\n✅ v23.0 早报生成成功！（降级）")
                     template_success = True
             except Exception as e2:
-                print(f"❌ 原版早报模板也失败：{e2}")
-    # 其他时间：生成复盘报告（v23.0 优化版 - 复用 v21 取数逻辑）
+                print(f"❌ v23.0 模板也失败：{e2}")
+    # 其他时间：生成复盘报告（v24.0 深度优化版）
     else:
-        print("→ 调用复盘模板 v23.0 优化版（复用 v21 数据结构）\n")
+        print("→ 调用复盘模板 v24.0 深度优化版\n")
         try:
-            from afternoon_review_template_v23 import generate_afternoon_review_v23
-            report_text = generate_afternoon_review_v23(data)
+            from afternoon_review_template_v24 import generate_afternoon_review_v24
+            report_text = generate_afternoon_review_v24(data)
             if report_text and len(report_text) > 500:
-                print("\n✅ v23.0 优化版复盘报告生成成功！")
+                print("\n✅ v24.0 深度优化版复盘报告生成成功！")
                 template_success = True
             else:
-                print(f"⚠️ v23.0 复盘模板返回内容为空或太短 (len={len(report_text) if report_text else 0})")
+                print(f"⚠️ v24.0 复盘模板返回内容为空或太短 (len={len(report_text) if report_text else 0})")
         except Exception as e:
-            print(f"❌ v23.0 复盘模板调用失败：{e}")
+            print(f"❌ v24.0 复盘模板调用失败：{e}")
             import traceback
             traceback.print_exc()
-            # 降级到原版模板
-            print("→ 降级到原版复盘模板 v2.0\n")
+            # 降级到 v23 模板
+            print("→ 降级到 v23.0 模板\n")
             try:
-                from afternoon_review_template import generate_afternoon_review
-                output = io.StringIO()
-                with redirect_stdout(output):
-                    generate_afternoon_review(data)
-                report_text = output.getvalue()
+                from afternoon_review_template_v23 import generate_afternoon_review_v23
+                report_text = generate_afternoon_review_v23(data)
                 if report_text and len(report_text) > 500:
-                    print("\n✅ 原版复盘报告生成成功！（降级）")
+                    print("\n✅ v23.0 复盘报告生成成功！（降级）")
                     template_success = True
             except Exception as e2:
-                print(f"❌ 原版复盘模板也失败：{e2}")
+                print(f"❌ v23.0 模板也失败：{e2}")
     
     # 发送飞书消息（只有模板成功才发送）
     if template_success and report_text:
