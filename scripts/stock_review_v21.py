@@ -2251,7 +2251,7 @@ def main():
     current_hour = datetime.now().hour
     print(f"当前时间：{current_hour}点，调用模板判断...\n")
     
-    # 早上 5 点 -12 点：生成早报（v24 深度优化版）
+    # 早上 5 点 -12 点：生成早报（v24 深度优化版 + v1.1 原版）
     if 5 <= current_hour < 12:
         print("→ 调用早报模板 v24.0（深度优化版）\n")
         try:
@@ -2260,10 +2260,6 @@ def main():
             report_text = generate_morning_report_v24(data)
             if report_text and len(report_text) > 500:
                 print("\n✅ v24.0 早报生成成功！")
-                # 发送 v24 版本
-                send_success = send_to_feishu(report_text)
-                if send_success:
-                    print("\n✅ v24.0 报告已发送到飞书！")
                 template_success = True
             else:
                 print(f"⚠️ v24.0 早报模板返回内容为空或太短 (len={len(report_text) if report_text else 0})")
@@ -2271,6 +2267,27 @@ def main():
             print(f"❌ v24.0 早报模板调用失败：{e}")
             import traceback
             traceback.print_exc()
+        
+        # 生成原版 v1.1 作为参考
+        print("\n→ 同时生成原版 v1.1（参考）\n")
+        try:
+            from morning_report_template import generate_morning_report
+            import io
+            from contextlib import redirect_stdout
+            
+            output = io.StringIO()
+            with redirect_stdout(output):
+                generate_morning_report(data)
+            v1_report = output.getvalue()
+            if v1_report and len(v1_report) > 500:
+                print("✅ 原版 v1.1 早报生成成功！")
+                # 发送原版（标注前缀）
+                v1_report_tagged = "【原版 v1.1 标准模板】\n\n" + v1_report
+                send_success = send_to_feishu(v1_report_tagged)
+                if send_success:
+                    print("✅ 原版 v1.1 报告已发送到飞书！")
+        except Exception as e:
+            print(f"⚠️ 原版 v1.1 生成失败：{e}")
     # 其他时间：生成复盘报告（原版模板，v22.0 调试中）
     else:
         print("→ 调用复盘模板 原版（v22.0 调试中）\n")
@@ -2292,6 +2309,7 @@ def main():
             traceback.print_exc()
     
     # 发送飞书消息（只有模板成功才发送）
+    # 注意：早报的 v1.1 已在 if 块内发送，这里只发送 v24 早报或复盘报告
     if template_success and report_text:
         send_success = send_to_feishu(report_text)
         if send_success:
