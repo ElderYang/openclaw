@@ -1962,11 +1962,13 @@ def get_overnight_news(us_indices_data=None):
     try:
         TAVILY_API_KEY = os.environ.get('TAVILY_API_KEY', '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')
         
-        # 只搜真正影响今天 A 股的大事
+        # 只搜真正影响今天 A 股的大事（增加查询维度）
         queries = [
             '中东 伊朗 油价 2026 年 4 月',  # 影响石油板块
             '美股 纳指 英伟达 2026 年 4 月',  # 影响 AI 算力
             '存储芯片 价格 2026 年',  # 影响兆易创新等
+            '美联储 利率 降息 2026 年 4 月',  # 影响全球流动性
+            '中概股 阿里巴巴 拼多多 2026 年',  # 影响港股互联网
         ]
         
         for query in queries:
@@ -1976,15 +1978,15 @@ def get_overnight_news(us_indices_data=None):
                     'api_key': TAVILY_API_KEY,
                     'query': query,
                     'search_depth': 'basic',
-                    'max_results': 2,
-                    'days': 3
+                    'max_results': 3,
+                    'days': 5  # 最近 5 天
                 }
                 r = requests.post(url, json=payload, timeout=10)
                 if r.status_code == 200:
                     data = r.json()
-                    for item in data.get('results', [])[:1]:
+                    for item in data.get('results', [])[:2]:
                         title = item.get('title', '')
-                        # 过滤旧闻
+                        # 过滤旧闻（2021-2025 年的不要）
                         if title and '2021' not in title and '2022' not in title and '2023' not in title and '2024' not in title and '2025' not in title:
                             news_list.append({
                                 'title': title[:100],
@@ -1999,7 +2001,7 @@ def get_overnight_news(us_indices_data=None):
         final_news = []
         
         # 1. 地缘 + 油价（如果有相关新闻）
-        oil_news = [n for n in news_list if '油' in n['title'] or '伊朗' in n['title'] or '中东' in n['title']]
+        oil_news = [n for n in news_list if '油' in n['title'] or '伊朗' in n['title'] or '中东' in n['title'] or '原油' in n['title']]
         if oil_news:
             final_news.append({
                 'title': '• 中东局势紧张→油价上涨→今天关注石油开采、油服板块（如中曼石油、杰瑞股份）',
@@ -2008,7 +2010,7 @@ def get_overnight_news(us_indices_data=None):
             })
         
         # 2. 美股 +AI（如果有相关新闻）
-        ai_news = [n for n in news_list if '英伟达' in n['title'] or '纳指' in n['title'] or 'AI' in n['title']]
+        ai_news = [n for n in news_list if '英伟达' in n['title'] or '纳指' in n['title'] or 'AI' in n['title'] or '美股' in n['title']]
         if ai_news:
             final_news.append({
                 'title': '• 美股纳指新高→英伟达领涨→今天关注 A 股 AI 算力链（如中际旭创、新易盛）',
@@ -2017,7 +2019,7 @@ def get_overnight_news(us_indices_data=None):
             })
         
         # 3. 存储芯片（如果有相关新闻）
-        chip_news = [n for n in news_list if '存储' in n['title'] or '芯片' in n['title']]
+        chip_news = [n for n in news_list if '存储' in n['title'] or '芯片' in n['title'] or '半导体' in n['title']]
         if chip_news:
             final_news.append({
                 'title': '• 存储芯片涨价持续→今天关注存储股（如兆易创新、北京君正）',
@@ -2025,8 +2027,17 @@ def get_overnight_news(us_indices_data=None):
                 'url': chip_news[0]['url'] if chip_news else ''
             })
         
-        # 4. 中概股（如果有相关新闻）
-        china_news = [n for n in news_list if '中概' in n['title'] or '阿里' in n['title'] or '拼多多' in n['title']]
+        # 4. 美联储 + 利率（如果有相关新闻）
+        fed_news = [n for n in news_list if '美联储' in n['title'] or '利率' in n['title'] or '降息' in n['title'] or '通胀' in n['title']]
+        if fed_news:
+            final_news.append({
+                'title': '• 美联储利率预期变化→今天关注 A 股流动性敏感板块（如券商、成长股）',
+                'snippet': '逻辑：美联储政策→全球流动性→A 股风险偏好',
+                'url': fed_news[0]['url'] if fed_news else ''
+            })
+        
+        # 5. 中概股（如果有相关新闻）
+        china_news = [n for n in news_list if '中概' in n['title'] or '阿里' in n['title'] or '拼多多' in n['title'] or '京东' in n['title']]
         if china_news:
             final_news.append({
                 'title': '• 中概股反弹→今天关注港股互联网、A 股电商概念',
@@ -2034,25 +2045,42 @@ def get_overnight_news(us_indices_data=None):
                 'url': china_news[0]['url'] if china_news else ''
             })
         
-        # 如果 Tavily 没抓到，用手动整理（但格式还是"事件→影响→操作"）
-        if len(final_news) < 2:
-            final_news = [
-                {
+        # 如果 Tavily 没抓到足够，用手动整理补充（但格式还是"事件→影响→操作"）
+        if len(final_news) < 3:
+            # 检查哪些类别缺失
+            has_oil = any('石油' in n['title'] for n in final_news)
+            has_ai = any('AI' in n['title'] or '算力' in n['title'] for n in final_news)
+            has_chip = any('存储' in n['title'] or '芯片' in n['title'] for n in final_news)
+            has_fed = any('美联储' in n['title'] or '利率' in n['title'] for n in final_news)
+            has_china = any('中概' in n['title'] for n in final_news)
+            
+            if not has_oil:
+                final_news.append({
                     'title': '• 中东局势紧张→油价上涨→今天关注石油开采、油服板块',
                     'snippet': '逻辑：地缘风险→原油供给担忧→油价涨→石油股受益（数据待确认）',
                     'url': ''
-                },
-                {
-                    'title': '• 美股纳指新高→AI 股领涨→今天关注 A 股算力链',
+                })
+            if not has_ai and len(final_news) < 4:
+                final_news.append({
+                    'title': '• 美股 AI 股领涨→今天关注 A 股算力链',
                     'snippet': '逻辑：美股 AI 股涨→情绪传导→A 股跟涨（数据待确认）',
                     'url': ''
-                },
-                {
+                })
+            if not has_chip and len(final_news) < 4:
+                final_news.append({
                     'title': '• 存储芯片涨价→今天关注存储股（兆易创新等）',
                     'snippet': '逻辑：NAND/DRAM 价格涨→盈利改善（数据待确认）',
                     'url': ''
-                },
-            ]
+                })
+            if not has_fed and len(final_news) < 4:
+                final_news.append({
+                    'title': '• 美联储利率预期→今天关注流动性敏感板块',
+                    'snippet': '逻辑：美联储政策→全球流动性→A 股风险偏好（数据待确认）',
+                    'url': ''
+                })
+        
+        # 限制最多 4 条
+        final_news = final_news[:4]
         
         print(f'✅ {len(final_news)}条 {time.time()-start:.1f}秒')
         return final_news
