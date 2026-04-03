@@ -1,19 +1,25 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-个人量化盯盘系统 v2.1 - 六项优化完整版
+个人量化盯盘系统 v2.2 - 全面优化版
 
 优化内容：
-1. ✅ 集成 RSI+ 布林带策略（6 大策略完整）
+1. ✅ 集成 RSI+ 布林带+MACD+KDJ 策略（8 大策略完整）
 2. ✅ 启用自选股监控
-3. ✅ 飞书卡片图表优化（信号强度条）
-4. ✅ 策略参数配置文件（JSON）
+3. ✅ 飞书卡片图表优化（信号强度条 + 止盈止损）
+4. ✅ 策略参数配置文件（JSON 外部化）
 5. ✅ 回测框架（胜率统计）
 6. ✅ 行业集中度风控
+7. ✅ 数据日期标注（昨天/今天清晰标注）
+8. ✅ 止盈止损自动计算（基于持仓成本）
+
+版本演进：
+- v2.0: 基础版（3 大策略）
+- v2.1: 增强版（6 大策略 + 回测）
+- v2.2: 全面优化版（8 大策略 + 止盈止损 + 配置外部化）
 
 作者：OpenClaw 量化助手
-日期：2026-04-02
-版本：v2.1
+日期：2026-04-03
 """
 
 import akshare as ak
@@ -34,6 +40,43 @@ from quant_monitor_v2_strategies import EnhancedStrategies
 
 # ==================== 配置 ====================
 
+# 加载外部配置文件（优化 5：配置外部化）
+CONFIG_FILE = os.path.join(os.path.dirname(__file__), '..', 'config', 'quant_config.json')
+if os.path.exists(CONFIG_FILE):
+    with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
+        config = json.load(f)
+    HOLDINGS = config['holdings']
+    WATCHLIST = config['watchlist']
+    STRATEGY_PARAMS = config['strategy_params']
+    RISK_PARAMS = config['risk_params']
+    print(f"✅ 配置文件已加载：{CONFIG_FILE}")
+else:
+    # 默认配置（配置文件不存在时使用）
+    HOLDINGS = {
+        "002050": {"name": "三花智控", "cost": 25.0, "position": 1000, "industry": "汽车零部件"},
+        "603986": {"name": "兆易创新", "cost": 80.0, "position": 500, "industry": "半导体"},
+        "300058": {"name": "蓝色光标", "cost": 8.5, "position": 2000, "industry": "传媒"},
+        "600584": {"name": "长电科技", "cost": 35.0, "position": 800, "industry": "半导体"},
+        "300442": {"name": "润泽科技", "cost": 40.0, "position": 600, "industry": "数据中心"},
+    }
+    WATCHLIST = ["000001", "000002", "300750", "600519", "000858", "002594", "601318", "600030"]
+    STRATEGY_PARAMS = {
+        "trend": {"ma_short": 5, "ma_long": 20},
+        "rsi": {"oversold": 30, "overbought": 70, "period": 14},
+        "bollinger": {"period": 20, "std": 2},
+        "macd": {"fast": 12, "slow": 26, "signal": 9},
+        "kdj": {"n": 9, "m1": 3, "m2": 3},
+        "moneyflow": {"threshold": 10000000, "ratio_threshold": 0.05},
+        "sentiment": {"limit_up_threshold": 50, "pct_chg_buy": 5, "pct_chg_sell": -5},
+    }
+    RISK_PARAMS = {
+        "stop_loss": -0.08,
+        "stop_profit": 0.20,
+        "industry_max_ratio": 0.4,
+        "blacklist": ["ST", "*ST", "退"],
+    }
+    print(f"⚠️ 配置文件不存在，使用默认配置")
+
 # 飞书配置
 FEISHU_APP_ID = "cli_a923ffd1e2f95cb2"
 FEISHU_APP_SECRET = "wbUuXVa7aIy96JDguHt3gdvlT4Kpp6aV"
@@ -43,38 +86,6 @@ FEISHU_USER_ID = "ou_a040d98b29a237916317887806d655de"
 TUSHARE_TOKEN = "7fd1efd594f9a1f70bd876707eabb60faa4bf658d6070056b3278e73"
 ts.set_token(TUSHARE_TOKEN)
 pro = ts.pro_api()
-
-# 持仓配置
-HOLDINGS = {
-    "002050": {"name": "三花智控", "cost": 25.0, "position": 1000, "industry": "汽车零部件"},
-    "603986": {"name": "兆易创新", "cost": 80.0, "position": 500, "industry": "半导体"},
-    "300058": {"name": "蓝色光标", "cost": 8.5, "position": 2000, "industry": "传媒"},
-    "600584": {"name": "长电科技", "cost": 35.0, "position": 800, "industry": "半导体"},
-    "300442": {"name": "润泽科技", "cost": 40.0, "position": 600, "industry": "数据中心"},
-}
-
-# 自选股
-WATCHLIST = [
-    "000001", "000002", "300750", "600519", "000858",
-    "002594", "601318", "600030",
-]
-
-# 策略参数配置（优化 4）
-STRATEGY_PARAMS = {
-    "trend": {"ma_short": 5, "ma_long": 20},
-    "rsi": {"oversold": 30, "overbought": 70, "period": 14},
-    "bollinger": {"period": 20, "std": 2},
-    "moneyflow": {"threshold": 10000000, "ratio_threshold": 0.05},
-    "sentiment": {"limit_up_threshold": 50, "pct_chg_buy": 5, "pct_chg_sell": -5},
-}
-
-# 风控参数
-RISK_PARAMS = {
-    "stop_loss": -0.08,
-    "stop_profit": 0.20,
-    "industry_max_ratio": 0.4,
-    "blacklist": ["ST", "*ST", "退"],
-}
 
 # ==================== 数据结构 ====================
 
@@ -492,7 +503,7 @@ def main():
         if sent_sig:
             signals.append(sent_sig)
         
-        # 增强策略
+        # 增强策略（8 大策略：RSI+ 布林带+MACD+KDJ）
         rsi_sig = enhanced_strategies.rsi_strategy(code, stock, history)
         if rsi_sig:
             signals.append(rsi_sig)
@@ -501,10 +512,34 @@ def main():
         if boll_sig:
             signals.append(boll_sig)
         
-        # 信号聚合
+        macd_sig = enhanced_strategies.macd_strategy(code, stock, history)
+        if macd_sig:
+            signals.append(macd_sig)
+        
+        kdj_sig = enhanced_strategies.kdj_strategy(code, stock, history)
+        if kdj_sig:
+            signals.append(kdj_sig)
+        
+        # 信号聚合（含止盈止损计算）
         if signals:
             buy_count = sum(1 for s in signals if s.signal_type == SignalType.BUY)
             sell_count = sum(1 for s in signals if s.signal_type == SignalType.SELL)
+            
+            # 🚨 止盈止损计算（基于持仓成本）
+            cost = info.get('cost', stock['price'])
+            current_price = stock['price']
+            profit_ratio = (current_price - cost) / cost
+            
+            # 动态止盈止损
+            if profit_ratio > 0.20:
+                stop_profit_price = current_price * 0.95  # 移动止盈 5%
+                stop_loss_price = cost * 1.10  # 保本止盈
+            elif profit_ratio > 0:
+                stop_profit_price = current_price * 1.20  # 目标止盈 20%
+                stop_loss_price = cost * 0.98  # 保本止损
+            else:
+                stop_profit_price = current_price * 1.20  # 目标止盈 20%
+                stop_loss_price = current_price * 0.92  # 固定止损 8%
             
             if buy_count > sell_count:
                 final_sig = Signal(
@@ -514,9 +549,14 @@ def main():
                     strategy="多策略",
                     reasons=[f"{s.strategy}: {', '.join(s.reasons)}" for s in signals if s.signal_type == SignalType.BUY],
                     suggested_price=stock['price'],
+                    target_price=stop_profit_price,
+                    stop_loss=stop_loss_price,
                 )
                 all_signals.append(final_sig)
-                print(f"    🟢 买入信号 (强度{final_sig.strength:.1f})")
+                profit_label = f"盈利{profit_ratio*100:+.1f}%" if profit_ratio != 0 else "成本价"
+                print(f"    🟢 买入信号 (强度{final_sig.strength:.1f}) - {profit_label}")
+                print(f"       止盈：{stop_profit_price:.2f} (+{(stop_profit_price/current_price-1)*100:.1f}%)")
+                print(f"       止损：{stop_loss_price:.2f} (-{(1-stop_loss_price/current_price)*100:.1f}%)")
             
             elif sell_count > buy_count:
                 final_sig = Signal(
@@ -526,9 +566,14 @@ def main():
                     strategy="多策略",
                     reasons=[f"{s.strategy}: {', '.join(s.reasons)}" for s in signals if s.signal_type == SignalType.SELL],
                     suggested_price=stock['price'],
+                    target_price=stop_profit_price,
+                    stop_loss=stop_loss_price,
                 )
                 all_signals.append(final_sig)
-                print(f"    🔴 卖出信号 (强度{final_sig.strength:.1f})")
+                profit_label = f"盈利{profit_ratio*100:+.1f}%" if profit_ratio != 0 else "成本价"
+                print(f"    🔴 卖出信号 (强度{final_sig.strength:.1f}) - {profit_label}")
+                print(f"       止盈：{stop_profit_price:.2f} (+{(stop_profit_price/current_price-1)*100:.1f}%)")
+                print(f"       止损：{stop_loss_price:.2f} (-{(1-stop_loss_price/current_price)*100:.1f}%)")
     
     # 2-1. 扫描自选股（优化 2）
     print("\n【2-1】扫描自选股...")
@@ -557,7 +602,7 @@ def main():
     industry_ok, industry_msg = risk_manager.check_industry_concentration(HOLDINGS)
     print(f"  {industry_msg}")
     
-    # 4. 飞书推送（优化 3）
+    # 4. 飞书推送（优化 3：增强版 - 含止盈止损 + 信号强度条）
     print(f"\n【4】飞书推送...")
     if all_signals or watchlist_signals:
         content = ""
@@ -566,14 +611,31 @@ def main():
             content += f"**📊 持仓股信号（{len(all_signals)}条）**\n\n"
             for sig in sorted(all_signals, key=lambda x: x.strength, reverse=True):
                 icon = "🟢" if sig.signal_type == SignalType.BUY else "🔴"
+                
+                # 信号强度条（优化 3）
+                strength_bar = "█" * int(sig.strength * 5) + "░" * (5 - int(sig.strength * 5))
+                
                 content += f"{icon} **{sig.name}({sig.code})** {sig.signal_type.value} @ {sig.suggested_price:.2f}\n"
-                content += f"   策略：{sig.strategy} | 理由：{'；'.join(sig.reasons[:2])}\n\n"
+                content += f"   强度：{strength_bar} {sig.strength:.1f}\n"
+                content += f"   策略：{sig.strategy} | 理由：{';'.join(sig.reasons[:2])}\n"
+                
+                # 🚨 止盈止损信息
+                if hasattr(sig, 'target_price') and sig.target_price:
+                    target_pct = (sig.target_price / sig.suggested_price - 1) * 100
+                    content += f"   🎯 止盈：{sig.target_price:.2f} (+{target_pct:.1f}%)\n"
+                if hasattr(sig, 'stop_loss') and sig.stop_loss:
+                    loss_pct = (1 - sig.stop_loss / sig.suggested_price) * 100
+                    content += f"   🛑 止损：{sig.stop_loss:.2f} (-{loss_pct:.1f}%)\n"
+                
+                content += "\n"
         
         if watchlist_signals:
             content += f"\n**👁️ 自选股信号（{len(watchlist_signals)}条）**\n\n"
             for sig in watchlist_signals:
                 icon = "🟢" if sig.signal_type == SignalType.BUY else "🔴"
+                strength_bar = "█" * int(sig.strength * 5) + "░" * (5 - int(sig.strength * 5))
                 content += f"{icon} **{sig.name}({sig.code})** {sig.signal_type.value} @ {sig.suggested_price:.2f}\n"
+                content += f"   强度：{strength_bar} {sig.strength:.1f}\n"
                 content += f"   策略：{sig.strategy} | {sig.reasons[0]}\n\n"
         
         color = "green" if any(s.signal_type == SignalType.BUY for s in all_signals + watchlist_signals) else "red"

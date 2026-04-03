@@ -1,0 +1,78 @@
+{
+  "holdings": {
+    "002050": {
+      "name": "三花智控",
+      "cost": 25.0,
+      "position": 1000,
+      "industry": "汽车零部件"
+    },
+    "603986": {
+      "name": "兆易创新",
+      "cost": 80.0,
+      "position": 500,
+      "industry": "半导体"
+    },
+    "300058": {
+      "name": "蓝色光标",
+      "cost": 8.5,
+      "position": 2000,
+      "industry": "传媒"
+    },
+    "600584": {
+      "name": "长电科技",
+      "cost": 35.0,
+      "position": 800,
+      "industry": "半导体"
+    },
+    "300442": {
+      "name": "润泽科技",
+      "cost": 40.0,
+      "position": 600,
+      "industry": "数据中心"
+    }
+  },
+  "watchlist": [
+    "000001", "000002", "300750", "600519", "000858",
+    "002594", "601318", "600030"
+  ],
+  "strategy_params": {
+    "trend": {
+      "ma_short": 5,
+      "ma_long": 20
+    },
+    "rsi": {
+      "oversold": 30,
+      "overbought": 70,
+      "period": 14
+    },
+    "bollinger": {
+      "period": 20,
+      "std": 2
+    },
+    "macd": {
+      "fast": 12,
+      "slow": 26,
+      "signal": 9
+    },
+    "kdj": {
+      "n": 9,
+      "m1": 3,
+      "m2": 3
+    },
+    "moneyflow": {
+      "threshold": 10000000,
+      "ratio_threshold": 0.05
+    },
+    "sentiment": {
+      "limit_up_threshold": 50,
+      "pct_chg_buy": 5,
+      "pct_chg_sell": -5
+    }
+  },
+  "risk_params": {
+    "stop_loss": -0.08,
+    "stop_profit": 0.20,
+    "industry_max_ratio": 0.4,
+    "blacklist": ["ST", "*ST", "退"]
+  }
+}
