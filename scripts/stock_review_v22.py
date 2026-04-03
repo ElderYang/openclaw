@@ -533,23 +533,50 @@ def get_indices_data():
         except Exception as e:
             print(f'(东方财富失败:{e})', end=' ')
         
-        # 【3】Yahoo Finance 备用（网络较好）
+        # 【3】Yahoo Finance 备用（网络较好）+ AkShare 计算昨收
         try:
             import yfinance as yf
+            import akshare as ak
+            
             ticker = yf.Ticker(codes['yahoo'])
             info = ticker.info
             hist = ticker.history(period='1d')  # 只需今天的数据
-            if len(hist) >= 1 and info.get('previousClose'):
+            
+            if len(hist) >= 1:
                 close = float(hist['Close'].iloc[-1])
-                prev_close = float(info.get('previousClose'))  # 使用 official previous close
                 yahoo_val = close
-                yahoo_pct = ((close - prev_close) / prev_close) * 100
-                ts_pct = yahoo_pct  # 使用 Yahoo 的涨跌幅
-                print(f'[Yahoo:{name} {yahoo_val:.2f} {yahoo_pct:+.2f}%]', end=' ')
-            elif len(hist) >= 1:
-                # 没有 previousClose，只有今天的数据
-                yahoo_val = float(hist['Close'].iloc[-1])
-                print(f'[Yahoo:{name} {yahoo_val:.2f} 无昨收]', end=' ')
+                
+                # 用 AkShare 获取正确的昨收价（最近一个交易日收盘）
+                try:
+                    # Yahoo symbol → AkShare symbol: 000001.SS → sh000001, 399001.SZ → sz399001
+                    yahoo_symbol = codes['yahoo']
+                    if yahoo_symbol.endswith('.SS'):
+                        ak_symbol = 'sh' + yahoo_symbol.replace('.SS', '')
+                    elif yahoo_symbol.endswith('.SZ'):
+                        ak_symbol = 'sz' + yahoo_symbol.replace('.SZ', '')
+                    else:
+                        ak_symbol = yahoo_symbol
+                    
+                    ak_df = ak.stock_zh_index_daily(symbol=ak_symbol)
+                    if len(ak_df) >= 1:
+                        # 昨收 = 最近一个交易日收盘（最后一行）
+                        # 注意：AkShare 数据有延迟，今天的数据明天才更新，所以最后一行是昨天的收盘
+                        prev_close = float(ak_df.iloc[-1]['close'])
+                        yahoo_pct = ((close - prev_close) / prev_close) * 100
+                        ts_pct = yahoo_pct
+                        print(f'[Yahoo+AkShare:{name} {close:.2f} {yahoo_pct:+.2f}%]', end=' ')
+                    else:
+                        # AkShare 数据不足，用 Yahoo 的 previousClose 备用
+                        prev_close = float(info.get('previousClose', close))
+                        yahoo_pct = ((close - prev_close) / prev_close) * 100
+                        ts_pct = yahoo_pct
+                        print(f'[Yahoo:{name} {close:.2f} {yahoo_pct:+.2f}%]', end=' ')
+                except Exception as ak_err:
+                    # AkShare 失败，降级到 Yahoo previousClose
+                    prev_close = float(info.get('previousClose', close))
+                    yahoo_pct = ((close - prev_close) / prev_close) * 100
+                    ts_pct = yahoo_pct
+                    print(f'[Yahoo:{name} {close:.2f} {yahoo_pct:+.2f}%]', end=' ')
             else:
                 print(f'[Yahoo:{name} 无数据]', end=' ')
         except Exception as e:

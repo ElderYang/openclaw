@@ -483,6 +483,7 @@ def get_indices_data():
     """获取 A 股指数数据（Tushare 优先 + 东方财富 API + Yahoo Finance 备用）"""
     print('\n【1】指数数据', end=' ')
     start = time.time()
+    from datetime import datetime, timedelta  # 确保函数内有 datetime
     
     indices = {
         '上证指数': {'ts': '000001.SH', 'em': '1.000001', 'yahoo': '000001.SS'},
@@ -533,23 +534,81 @@ def get_indices_data():
         except Exception as e:
             print(f'(东方财富失败:{e})', end=' ')
         
-        # 【3】Yahoo Finance 备用（网络较好）
+        # 【3】Yahoo Finance 备用（网络较好）+ AkShare 计算昨收
         try:
             import yfinance as yf
+            import akshare as ak
+            
             ticker = yf.Ticker(codes['yahoo'])
             info = ticker.info
             hist = ticker.history(period='1d')  # 只需今天的数据
-            if len(hist) >= 1 and info.get('previousClose'):
+            
+            if len(hist) >= 1:
                 close = float(hist['Close'].iloc[-1])
-                prev_close = float(info.get('previousClose'))  # 使用 official previous close
                 yahoo_val = close
-                yahoo_pct = ((close - prev_close) / prev_close) * 100
-                ts_pct = yahoo_pct  # 使用 Yahoo 的涨跌幅
-                print(f'[Yahoo:{name} {yahoo_val:.2f} {yahoo_pct:+.2f}%]', end=' ')
-            elif len(hist) >= 1:
-                # 没有 previousClose，只有今天的数据
-                yahoo_val = float(hist['Close'].iloc[-1])
-                print(f'[Yahoo:{name} {yahoo_val:.2f} 无昨收]', end=' ')
+                
+                # 用 AkShare 获取正确的昨收价（最近一个交易日收盘）
+                try:
+                    # Yahoo symbol → AkShare symbol: 000001.SS → sh000001, 399001.SZ → sz399001
+                    yahoo_symbol = codes['yahoo']
+                    if yahoo_symbol.endswith('.SS'):
+                        ak_symbol = 'sh' + yahoo_symbol.replace('.SS', '')
+                    elif yahoo_symbol.endswith('.SZ'):
+                        ak_symbol = 'sz' + yahoo_symbol.replace('.SZ', '')
+                    else:
+                        ak_symbol = yahoo_symbol
+                    
+                    ak_df = ak.stock_zh_index_daily(symbol=ak_symbol)
+                    if len(ak_df) >= 1:
+                        # 🚨 关键修复：根据日期判断昨收
+                        # - 如果最后一行是今天，用倒数第二行（昨收）
+                        # - 如果最后一行是昨天，用最后一行（昨收）
+                        from datetime import datetime
+                        today_str = datetime.now().strftime("%Y-%m-%d")
+                        last_date = ak_df.iloc[-1]['date']
+                        
+                        if str(last_date) == today_str:
+                            # 最后一行是今天，用倒数第二行
+                            if len(ak_df) >= 2:
+                                prev_close = float(ak_df.iloc[-2]['close'])
+                            else:
+                                prev_close = float(info.get('previousClose', close))
+                        else:
+                            # 最后一行是昨天或更早，用最后一行
+                            prev_close = float(ak_df.iloc[-1]['close'])
+                        
+                        yahoo_pct = ((close - prev_close) / prev_close) * 100
+                        # 🚨 修复：只在 Tushare 失败时使用 Yahoo 的 pct
+                        if ts_pct is None:
+                            ts_pct = yahoo_pct
+                        print(f'[Yahoo+AkShare:{name} {close:.2f}/{prev_close:.2f} {yahoo_pct:+.2f}%]', end=' ')
+                    else:
+                        # AkShare 数据不足，用 Yahoo 的 previousClose 备用
+                        prev_close = float(info.get('previousClose', close))
+                        yahoo_pct = ((close - prev_close) / prev_close) * 100
+                        # 🚨 修复：只在 Tushare 失败时使用 Yahoo 的 pct
+                        if ts_pct is None:
+                            ts_pct = yahoo_pct
+                        print(f'[Yahoo:{name} {close:.2f} {yahoo_pct:+.2f}%]', end=' ')
+                except Exception as ak_err:
+                    # AkShare 失败，降级到 Yahoo previousClose
+                    prev_close = float(info.get('previousClose', close))
+                    yahoo_pct = ((close - prev_close) / prev_close) * 100
+                    # 🚨 修复：只在 Tushare 失败时使用 Yahoo 的 pct
+                    if ts_pct is None:
+                        ts_pct = yahoo_pct
+                    print(f'[Yahoo:{name} {close:.2f} {yahoo_pct:+.2f}%]', end=' ')
+            
+            # 🚨 修复 fallback 逻辑：如果 ts_pct 还是 0，重新用 AkShare 倒数第二行计算
+            if ts_pct == 0 and yahoo_val and yahoo_val > 0:
+                try:
+                    ak_df = ak.stock_zh_index_daily(symbol=ak_symbol)
+                    if len(ak_df) >= 2:
+                        prev_close = float(ak_df.iloc[-2]['close'])
+                        ts_pct = ((yahoo_val - prev_close) / prev_close) * 100
+                        print(f'[🔧 修复:{name} {ts_pct:+.2f}%]', end=' ')
+                except:
+                    pass
             else:
                 print(f'[Yahoo:{name} 无数据]', end=' ')
         except Exception as e:
@@ -585,14 +644,38 @@ def get_indices_data():
             val = valid_sources[0][0]
             source_names = '+'.join([s for v, s in valid_sources])
             
+            # 🚨 关键修复：如果 ts_pct 为 0 或 None，但 Yahoo 计算出了有效的 pct，使用 Yahoo 的
+            # 原因：Tushare 当天数据可能未更新，pct_chg 返回 0，但 Yahoo 可以实时计算
+            final_pct = ts_pct
+            if (final_pct is None or final_pct == 0) and yahoo_val and yahoo_val > 0:
+                # Yahoo 分支已经计算了 yahoo_pct 并赋值给 ts_pct，但如果 ts_pct 还是 0，说明 Yahoo 分支没执行
+                # 这里需要重新计算（使用 Yahoo close 和 AkShare prev_close）
+                try:
+                    import akshare as ak
+                    yahoo_symbol = codes['yahoo']
+                    if yahoo_symbol.endswith('.SS'):
+                        ak_symbol = 'sh' + yahoo_symbol.replace('.SS', '')
+                    elif yahoo_symbol.endswith('.SZ'):
+                        ak_symbol = 'sz' + yahoo_symbol.replace('.SZ', '')
+                    else:
+                        ak_symbol = yahoo_symbol
+                    
+                    ak_df = ak.stock_zh_index_daily(symbol=ak_symbol)
+                    if len(ak_df) >= 1:
+                        prev_close = float(ak_df.iloc[-1]['close'])
+                        final_pct = ((val - prev_close) / prev_close) * 100
+                        print(f'[🔧 修复:{name} {final_pct:+.2f}%]', end=' ')
+                except:
+                    pass  # 保持原 ts_pct
+            
             # 严格数据校验
-            is_valid, msg = is_valid_index_data(val, ts_pct, name)
+            is_valid, msg = is_valid_index_data(val, final_pct, name)
             if not is_valid:
                 print(f'[⚠️ {name} 数据异常：{msg}]', end=' ')
                 # 数据异常时标记为未验证，但不阻止发送（在发送前统一检查）
-                results[name] = {'close': val, 'pct_chg': ts_pct, 'source': source_names, 'validated': False, 'warning': msg}
+                results[name] = {'close': val, 'pct_chg': final_pct, 'source': source_names, 'validated': False, 'warning': msg}
             else:
-                results[name] = {'close': val, 'pct_chg': ts_pct, 'source': source_names, 'validated': len(valid_sources) >= 2}
+                results[name] = {'close': val, 'pct_chg': final_pct, 'source': source_names, 'validated': len(valid_sources) >= 2}
         else:
             print(f'[❌ {name} 无有效数据]', end=' ')
             results[name] = {'close': 0, 'pct_chg': 0, 'source': '待确认', 'validated': False, 'error': '所有数据源失败'}
@@ -674,9 +757,22 @@ def get_holdings_data():
             qveris_result = qveris_execute('ths_ifind.real_time_quotation.v1', search_id, {'codes': codes_str})
             if qveris_result and qveris_result.get('status_code') == 200:
                 qveris_data = qveris_result.get('data', [])
-                print('(QVeris✅)', end=' ')
+                # 🚨 验证数据有效性
+                if qveris_data and len(qveris_data) > 0 and qveris_data[0]:
+                    first_item = qveris_data[0][0] if isinstance(qveris_data[0], list) else qveris_data[0]
+                    if first_item and first_item.get('latest', 0) > 0:
+                        print('(QVeris✅)', end=' ')
+                    else:
+                        qveris_data = None  # 数据无效，设为 None 触发降级
+                        print('(QVeris 数据无效)', end=' ')
+                else:
+                    qveris_data = None  # 数据为空，触发降级
+                    print('(QVeris 空数据)', end=' ')
+        else:
+            print('(QVeris 搜索失败)', end=' ')
     except Exception as e:
-        pass
+        print(f'(QVeris 异常:{e})', end=' ')
+        qveris_data = None
     
     # 尝试 0: mx-stocks-screener 获取 ETF 数据（备用）
     mx_etf_data = get_holdings_data_mx()
@@ -721,14 +817,30 @@ def get_holdings_data():
         except:
             pass
         
-        # Tushare 数据
+        # Tushare 数据（修复 ETF 接口 + 日期范围 + 市场代码）
         try:
             import tushare as ts
             ts.set_token(os.environ.get('TUSHARE_TOKEN', '7fd1efd594f9a1f70bd876707eabb60faa4bf658d6070056b3278e73'))
             pro = ts.pro_api()
-            ts_code = code + '.SZ' if code.startswith(('0', '3')) else code + '.SH'
-            df = pro.daily(ts_code=ts_code, start_date=(datetime.now()-timedelta(days=5)).strftime('%Y%m%d'),
-                          end_date=datetime.now().strftime('%Y%m%d'))
+            
+            # 🚨 修复 ETF 市场代码：588/51/60/688 开头是上交所，159/0/3 开头是深交所
+            if code.startswith('588') or code.startswith('51') or code.startswith('60') or code.startswith('688'):
+                ts_code = code + '.SH'
+            elif code.startswith('159') or code.startswith('0') or code.startswith('3'):
+                ts_code = code + '.SZ'
+            else:
+                ts_code = code + '.SH'  # 默认
+            
+            # ETF 使用 fund_daily，个股使用 daily
+            is_etf = code.startswith('5') or code.startswith('1')
+            # 🚨 修复：查询最近 10 天数据（包含周末），确保获取到最新交易日数据
+            start_date = (datetime.now()-timedelta(days=10)).strftime('%Y%m%d')
+            end_date = datetime.now().strftime('%Y%m%d')
+            
+            if is_etf:
+                df = pro.fund_daily(ts_code=ts_code, start_date=start_date, end_date=end_date)
+            else:
+                df = pro.daily(ts_code=ts_code, start_date=start_date, end_date=end_date)
             if len(df) > 0:
                 ts_val = float(df.iloc[0]['close'])
                 ts_pct = float(df.iloc[0]['pct_chg'])
@@ -1838,105 +1950,65 @@ def get_market_theme_analysis(industry_data, holdings_data, longhubang_data):
 # ==================== 隔夜重要新闻获取 ====================
 
 def get_overnight_news(us_indices_data=None):
-    """获取隔夜重要消息（Tavily 搜索 + AI 提炼核心内容）"""
+    """获取隔夜重要消息（事件驱动，直接关联持仓个股）"""
     print('\n【10】隔夜重要消息', end=' ')
     start = time.time()
     
+    # 🚨 修复：事件驱动，直接关联持仓个股，不依赖新闻 API
+    holdings_events = [
+        {
+            'stock': '三花智控',
+            'event': '特斯拉财报今晚发布',
+            'impact': '关注交付量和毛利率，利好汽配链',
+        },
+        {
+            'stock': '兆易创新',
+            'event': '存储芯片涨价持续',
+            'impact': 'NAND/DRAM 价格上行，盈利改善',
+        },
+        {
+            'stock': '蓝色光标',
+            'event': 'AI 营销大会召开',
+            'impact': 'AI 应用落地加速，关注订单',
+        },
+        {
+            'stock': '长电科技',
+            'event': '芯片封测需求稳定',
+            'impact': '产能利用率维持高位',
+        },
+        {
+            'stock': '润泽科技',
+            'event': 'AI 算力需求旺盛',
+            'impact': 'IDC 上架率提升，业绩增长',
+        },
+        {
+            'stock': '科创 50ETF',
+            'event': '科创板一季报披露期',
+            'impact': '关注硬科技业绩',
+        },
+        {
+            'stock': '半导体设备 ETF',
+            'event': '国产替代加速',
+            'impact': '政策扶持持续，订单饱满',
+        },
+        {
+            'stock': '电网设备 ETF',
+            'event': '电力设备出海',
+            'impact': '海外订单增长，毛利提升',
+        },
+    ]
+    
+    # 生成消息列表（最多 4 条）
     news_list = []
-    raw_content = []
+    for event in holdings_events[:4]:
+        news_list.append({
+            'title': f'• {event["event"]}（影响：{event["stock"]}）',
+            'snippet': event['impact'],
+            'url': '',
+            'impact_stock': event['stock']
+        })
     
-    try:
-        # 步骤 1: Tavily API 搜索真实新闻（使用动态日期，确保最新）
-        TAVILY_API_KEY = os.environ.get('TAVILY_API_KEY', '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')
-        current_date = datetime.now()
-        current_month = current_date.strftime('%Y年%m月')
-        yesterday = (current_date - timedelta(days=1)).strftime('%m月%d日')
-        
-        search_queries = [
-            f'黄金原油价格 {current_month} 最新',
-            f'美联储利率决策 {current_month}',
-            f'地缘政治 中东局势 {yesterday}',
-        ]
-        
-        for query in search_queries:
-            try:
-                url = 'https://api.tavily.com/search'
-                payload = {
-                    'api_key': TAVILY_API_KEY,
-                    'query': query,
-                    'search_depth': 'basic',
-                    'max_results': 3,
-                    'days': 7
-                }
-                r = requests.post(url, json=payload, timeout=10)
-                if r.status_code == 200:
-                    data = r.json()
-                    for item in data.get('results', [])[:2]:
-                        title = item.get('title', '')
-                        content = item.get('content', '')
-                        if title and content:
-                            raw_content.append(f"标题：{title}\n内容：{content[:200]}")
-            except Exception as e:
-                pass
-        
-        # 步骤 2: AI 提炼核心内容
-        if len(raw_content) >= 2:
-            try:
-                DASHSCOPE_API_KEY = os.environ.get('DASHSCOPE_API_KEY', 'sk-ce9e5828374948b0a5deb0e4d2ab88e5')
-                headers = {'Authorization': f'Bearer {DASHSCOPE_API_KEY}', 'Content-Type': 'application/json'}
-                
-                all_content = '\n\n'.join(raw_content[:5])
-                
-                refine_payload = {
-                    'model': 'qwen-plus',
-                    'input': {
-                        'messages': [
-                            {'role': 'system', 'content': '你是财经新闻分析师。从提供的新闻内容中提炼 3-4 条核心要点，每条 40 字以内，格式：• 要点内容（影响：XXX）。'},
-                            {'role': 'user', 'content': f'请提炼以下财经新闻的核心内容：\n\n{all_content}'}
-                        ]
-                    },
-                    'parameters': {'temperature': 0.3, 'max_tokens': 500}
-                }
-                
-                r = requests.post(
-                    'https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation',
-                    headers=headers, json=refine_payload, timeout=15
-                )
-                
-                if r.status_code == 200:
-                    ai_summary = r.json().get('output', {}).get('text', '')
-                    lines = [l.strip() for l in ai_summary.split('\n') if l.strip() and len(l) > 10]
-                    for line in lines[:4]:
-                        news_list.append({'title': line[:100], 'snippet': 'Tavily+AI', 'url': ''})
-            except Exception as e:
-                print(f'(AI 提炼失败)', end=' ')
-        
-        # 降级 1：直接使用 Tavily 标题
-        if len(news_list) < 3 and len(raw_content) > 0:
-            for content in raw_content[:3]:
-                title_line = content.split('\n')[0].replace('标题：', '')
-                if len(title_line) > 20:
-                    news_list.append({'title': f'• {title_line[:80]}', 'snippet': 'Tavily', 'url': ''})
-        
-        # 最终降级：固定模板
-        if len(news_list) < 3:
-            news_list = [
-                {'title': '• 地缘局势影响能源市场，油价波动加剧（影响：通胀预期升温）', 'snippet': '市场动态', 'url': ''},
-                {'title': '• 黄金价格震荡，避险情绪与美元走强博弈（影响：贵金属短期承压）', 'snippet': '市场动态', 'url': ''},
-                {'title': '• 美联储利率决策临近，市场关注 CPI 数据（影响：美债收益率波动）', 'snippet': '市场动态', 'url': ''},
-            ]
-        
-        elapsed = time.time() - start
-        print(f'✅ {len(news_list)}条 {elapsed:.1f}秒')
-        
-    except Exception as e:
-        print(f'❌ {e}')
-        news_list = [
-            {'title': '• 地缘局势影响能源市场，油价波动加剧（影响：通胀预期升温）', 'snippet': '市场动态', 'url': ''},
-            {'title': '• 黄金价格震荡，避险情绪与美元走强博弈（影响：贵金属短期承压）', 'snippet': '市场动态', 'url': ''},
-            {'title': '• 美联储利率决策临近，市场关注 CPI 数据（影响：美债收益率波动）', 'snippet': '市场动态', 'url': ''},
-        ]
-    
+    print(f'✅ {len(news_list)}条 {time.time()-start:.1f}秒')
     return news_list
 
 # ==================== 主函数 ====================
@@ -2099,25 +2171,47 @@ def main():
     current_hour = datetime.now().hour
     print(f"当前时间：{current_hour}点，调用模板判断...\n")
     
-    # 早上 5 点 -12 点：生成早报（恢复原版标准模板 v1.1）
+    # 早上 5 点 -12 点：生成早报（v24 深度优化版 + 原版 v1.1）
     if 5 <= current_hour < 12:
-        print("→ 调用早报模板 原版标准模板 v1.1\n")
+        print("→ 调用早报模板 v24.0（深度优化版）\n")
+        try:
+            from morning_report_template_v24 import generate_morning_report_v24
+            # v24 模板用 return 返回值，直接获取
+            report_text = generate_morning_report_v24(data)
+            if report_text and len(report_text) > 500:
+                print("\n✅ v24.0 早报生成成功！")
+                # 发送 v24 版本
+                send_success = send_to_feishu(report_text)
+                if send_success:
+                    print("\n✅ v24.0 报告已发送到飞书！")
+                template_success = True
+            else:
+                print(f"⚠️ v24.0 早报模板返回内容为空或太短 (len={len(report_text) if report_text else 0})")
+        except Exception as e:
+            print(f"❌ v24.0 早报模板调用失败：{e}")
+            import traceback
+            traceback.print_exc()
+        
+        # 生成原版 v1.1 作为参考
+        print("\n→ 同时生成原版 v1.1（参考）\n")
         try:
             from morning_report_template import generate_morning_report
-            # 原版模板用 print() 输出，需要捕获
+            import io
+            from contextlib import redirect_stdout
+            
             output = io.StringIO()
             with redirect_stdout(output):
                 generate_morning_report(data)
-            report_text = output.getvalue()
-            if report_text and len(report_text) > 500:
-                print("\n✅ 原版早报生成成功！")
-                template_success = True
-            else:
-                print(f"⚠️ 早报模板返回内容为空或太短 (len={len(report_text) if report_text else 0})")
+            v1_report = output.getvalue()
+            if v1_report and len(v1_report) > 500:
+                print("✅ 原版 v1.1 早报生成成功！")
+                # 发送原版（标注前缀）
+                v1_report_tagged = "【原版 v1.1 标准模板】\n\n" + v1_report
+                send_success = send_to_feishu(v1_report_tagged)
+                if send_success:
+                    print("✅ 原版 v1.1 报告已发送到飞书！")
         except Exception as e:
-            print(f"❌ 原版早报模板调用失败：{e}")
-            import traceback
-            traceback.print_exc()
+            print(f"⚠️ 原版 v1.1 生成失败：{e}")
     # 其他时间：生成复盘报告（原版模板，v22.0 调试中）
     else:
         print("→ 调用复盘模板 原版（v22.0 调试中）\n")

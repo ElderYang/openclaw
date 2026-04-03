@@ -111,7 +111,16 @@ def check_brave():
             return {
                 'status': 'critical',
                 'message': '额度已用尽',
-                'remaining': 0
+                'remaining': 0,
+                'fallback': '✅ 已改用 multi-search-engine（17 个搜索引擎，无需 API）'
+            }
+        elif response.status_code == 402:
+            return {
+                'status': 'warning',
+                'message': '配额超限（HTTP 402）',
+                'remaining': 0,
+                'note': '基础版 2000 次/月已用尽',
+                'fallback': '✅ 已改用 multi-search-engine（17 个搜索引擎，无需 API）'
             }
         else:
             return {'status': 'error', 'message': f'HTTP {response.status_code}'}
@@ -180,6 +189,7 @@ def generate_report(results):
     report.append("=" * 60)
     
     alerts = []
+    fallbacks = []
     
     for api_name, result in results.items():
         status_icon = {
@@ -207,8 +217,17 @@ def generate_report(results):
                     alerts.append(f"{api_name}: {remaining} {unit} (低于阈值)")
         else:
             report.append(f"  错误信息：{result.get('message', 'Unknown')}")
+            if result.get('note'):
+                report.append(f"  说明：{result['note']}")
+            if result.get('fallback'):
+                report.append(f"  备用方案：{result['fallback']}")
+                fallbacks.append(f"{api_name}: {result['fallback']}")
+            
+            # 只有 error/critical 才加入告警，warning 且有 fallback 的不加入
             if result.get('status') == 'error':
                 alerts.append(f"{api_name}: 检查失败")
+            elif result.get('status') == 'critical':
+                alerts.append(f"{api_name}: {result.get('message', '严重错误')}")
     
     # 告警汇总
     if alerts:
@@ -217,6 +236,14 @@ def generate_report(results):
         report.append("-" * 60)
         for alert in alerts:
             report.append(f"  • {alert}")
+    
+    # 备用方案汇总
+    if fallbacks:
+        report.append("\n" + "=" * 60)
+        report.append("✅ 备用方案")
+        report.append("-" * 60)
+        for fallback in fallbacks:
+            report.append(f"  • {fallback}")
     
     report.append("\n" + "=" * 60)
     
