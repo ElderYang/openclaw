@@ -173,7 +173,7 @@ class EmailMonitor:
         return unread_emails
     
     def add_to_reminders(self, subject: str, sender: str, received_time: str) -> bool:
-        """添加到 macOS 提醒事项（简化版）"""
+        """添加到 macOS 提醒事项（修复版）"""
         try:
             # 清理主题（移除特殊字符和换行，限制长度）
             clean_subject = re.sub(r'[^\w\s\u4e00-\u9fa5@.:]', ' ', subject)[:60].strip()
@@ -183,21 +183,25 @@ class EmailMonitor:
             reminder_title = f"📧 {clean_subject}"
             reminder_notes = f"发件人：{clean_sender}\n时间：{received_time}"
             
-            # 使用简短的 AppleScript
-            script = f'tell app "Reminders" to make new todo at end of list "提醒" with properties {{name:"{reminder_title}", body:"{reminder_notes}"}}'
+            # 使用正确的 AppleScript 语法
+            script = f'''
+            tell application "Reminders"
+                make new todo at end of todos of list "提醒" with properties {{name:"{reminder_title}", body:"{reminder_notes}"}}
+            end tell
+            '''
             
             result = subprocess.run(
                 ["osascript", "-e", script],
                 capture_output=True,
                 text=True,
-                timeout=3
+                timeout=5
             )
             
             if result.returncode == 0:
                 print(f"  ✅ 已添加提醒")
                 return True
             else:
-                print(f"  ⚠️ 添加失败")
+                print(f"  ⚠️ 添加失败：{result.stderr[:80]}")
                 return False
                 
         except subprocess.TimeoutExpired:
