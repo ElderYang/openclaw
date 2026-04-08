@@ -524,7 +524,11 @@ def get_indices_data():
                 # 优先使用 f49（东方财富直接返回的涨跌幅%）
                 if d.get('f49') is not None:
                     em_pct = float(d.get('f49', 0))
-                    ts_pct = em_pct  # 直接使用东方财富的涨跌幅
+                    # 🚨 修复：校验东方财富数据，避免错误覆盖 Tushare
+                    if -20 < em_pct < 20:  # 合理范围内才使用
+                        ts_pct = em_pct
+                    else:
+                        print(f'[⚠️ 东方财富涨跌幅异常:{em_pct}%，忽略]', end=' ')
                 # 如果 f49 不可用，手动计算涨跌幅
                 elif d.get('f170') and d.get('f43'):
                     close = d['f43'] / 100
@@ -2215,6 +2219,10 @@ def main():
             data_quality_ok = False
         elif warning:
             print(f"  ⚠️ {name}: {warning} (close={close:.2f}, pct={pct_chg:.2f}%)")
+            # 🚨 修复：涨跌幅异常时阻止发送（避免错误数据）
+            if pct_chg is not None and abs(pct_chg) > 20:
+                print(f"  ❌ {name}: 涨跌幅异常 ({pct_chg:.2f}%)，停止发送！")
+                data_quality_ok = False
             # 数据异常时不阻止发送，但记录警告
         else:
             print(f"  ✅ {name}: {close:.2f} ({pct_chg:+.2f}%)")
