@@ -2296,37 +2296,56 @@ def main():
                     print("✅ 原版 v1.1 报告已发送到飞书！")
         except Exception as e:
             print(f"⚠️ 原版 v1.1 生成失败：{e}")
-    # 其他时间：生成复盘报告（原版模板，v22.0 调试中）
+    # 其他时间：生成复盘报告（原版 + v24 深度优化版）
     else:
-        print("→ 调用复盘模板 原版（v22.0 调试中）\n")
+        print("→ 调用复盘模板 原版 + v24 深度优化版\n")
+        
+        # 生成 v24 深度优化版（优先发送）
+        try:
+            from afternoon_review_template_v24 import generate_afternoon_review_v24
+            report_text = generate_afternoon_review_v24(data)
+            if report_text and len(report_text) > 500:
+                print("\n✅ v24.0 复盘报告生成成功！")
+                template_success = True
+            else:
+                print(f"⚠️ v24.0 复盘模板返回内容为空或太短 (len={len(report_text) if report_text else 0})")
+        except Exception as e:
+            print(f"❌ v24.0 复盘模板调用失败：{e}")
+            import traceback
+            traceback.print_exc()
+        
+        # 生成原版作为参考
+        print("\n→ 同时生成原版（参考）\n")
         try:
             from afternoon_review_template import generate_afternoon_review
-            # 原版模板用 print() 输出，需要捕获
+            import io
+            from contextlib import redirect_stdout
+            
             output = io.StringIO()
             with redirect_stdout(output):
                 generate_afternoon_review(data)
-            report_text = output.getvalue()
-            if report_text and len(report_text) > 500:
-                print("\n✅ 原版复盘报告生成成功！")
-                template_success = True
-            else:
-                print(f"⚠️ 复盘模板返回内容为空或太短 (len={len(report_text) if report_text else 0})")
+            v1_report = output.getvalue()
+            if v1_report and len(v1_report) > 500:
+                print("✅ 原版复盘报告生成成功！")
+                # 发送原版（标注前缀）
+                v1_report_tagged = "【原版标准模板】\n\n" + v1_report
+                send_success = send_to_feishu(v1_report_tagged)
+                if send_success:
+                    print("✅ 原版复盘报告已发送到飞书！")
         except Exception as e:
-            print(f"❌ 原版复盘模板调用失败：{e}")
-            import traceback
-            traceback.print_exc()
+            print(f"⚠️ 原版复盘报告生成失败：{e}")
     
     # 发送飞书消息（只有模板成功才发送）
-    # 注意：早报的 v1.1 已在 if 块内发送，这里只发送 v24 早报或复盘报告
+    # 注意：早报/复盘的原版已在 if 块内发送，这里只发送 v24 深度优化版
     if template_success and report_text:
         send_success = send_to_feishu(report_text)
         if send_success:
-            print("\n✅ 报告已发送到飞书！")
+            print("\n✅ v24 深度优化版报告已发送到飞书！")
         else:
             print("\n❌ 报告发送失败，请检查网络连接或飞书配置")
     else:
         print("\n⚠️ 模板生成失败，未发送报告")
-        print("请检查模板文件或手动执行：python3 morning_report_template.py 或 afternoon_review_template.py")
+        print("请检查模板文件或手动执行：python3 morning_report_template_v24.py 或 afternoon_review_template_v24.py")
     
     # 完成通知（解决"没动静"问题）
     end_time = datetime.now()
