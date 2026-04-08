@@ -229,7 +229,7 @@ def create_reminder(subject, notes='', priority='normal', due_datetime=None, loc
             base_props += f', location:"{location_escaped}"'
         
         if due_datetime:
-            # 分两步：先创建提醒，再设置日期
+            # 分两步：先创建提醒，再设置日期（修复变量作用域问题）
             year = due_datetime.year
             month = due_datetime.month
             day = due_datetime.day
@@ -237,14 +237,14 @@ def create_reminder(subject, notes='', priority='normal', due_datetime=None, loc
             minute = due_datetime.minute
             
             script = f'''tell application "Reminders"
-    make new reminder at end of reminders of list "{REMINDER_LIST}" with properties {{{base_props}}}
+    set newReminder to make new reminder at end of reminders of list "{REMINDER_LIST}" with properties {{{base_props}}}
     set theDate to current date
     set year of theDate to {year}
     set month of theDate to {month}
     set day of theDate to {day}
     set hours of theDate to {hour}
     set minutes of theDate to {minute}
-    set due date of (first reminder of list "{REMINDER_LIST}" whose name is "{subject_escaped}") to theDate
+    set due date of newReminder to theDate
 end tell'''
         else:
             script = f'tell application "Reminders" to make new reminder at end of reminders of list "{REMINDER_LIST}" with properties {{{base_props}}}'

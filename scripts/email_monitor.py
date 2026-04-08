@@ -173,7 +173,7 @@ class EmailMonitor:
         return unread_emails
     
     def add_to_reminders(self, subject: str, sender: str, received_time: str) -> bool:
-        """添加到 macOS 提醒事项（修复版）"""
+        """添加到 macOS 提醒事项（修复版 - 使用正确的变量引用）"""
         try:
             # 清理主题（移除特殊字符和换行，限制长度）
             clean_subject = re.sub(r'[^\w\s\u4e00-\u9fa5@.:]', ' ', subject)[:60].strip()
@@ -183,10 +183,10 @@ class EmailMonitor:
             reminder_title = f"📧 {clean_subject}"
             reminder_notes = f"发件人：{clean_sender}\n时间：{received_time}"
             
-            # 使用正确的 AppleScript 语法
+            # 使用正确的 AppleScript 语法（使用变量引用新创建的提醒）
             script = f'''
             tell application "Reminders"
-                make new todo at end of todos of list "提醒" with properties {{name:"{reminder_title}", body:"{reminder_notes}"}}
+                set newReminder to make new reminder at end of reminders of list "提醒" with properties {{name:"{reminder_title}", body:"{reminder_notes}"}}
             end tell
             '''
             
@@ -208,7 +208,7 @@ class EmailMonitor:
             print(f"  ⚠️ 超时")
             return False
         except Exception as e:
-            print(f"  ⚠️ 异常")
+            print(f"  ⚠️ 异常：{e}")
             return False
     
     def check_and_add_reminders(self) -> dict:

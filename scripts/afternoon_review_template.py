@@ -213,12 +213,12 @@ def get_highest_lianban(zt_data):
 
 def get_market_focus(data):
     """获取市场焦点"""
-    lhb = data.get('longhubang', {})
+    lhb = data.get('longhubang') or {}
     
     focus_points = []
     
-    # 龙虎榜机构情况
-    institutions = lhb.get('institutions', [])
+    # 龙虎榜机构情况（增加 None 检查）
+    institutions = lhb.get('institutions', []) if lhb and isinstance(lhb, dict) else []
     if len(institutions) > 0:
         focus_points.append(f"机构买入{len(institutions)}家")
     else:
