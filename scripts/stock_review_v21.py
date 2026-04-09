@@ -794,8 +794,7 @@ def get_holdings_data():
                 qv_item = qveris_data[i][0] if qveris_data[i] else None
                 if qv_item:
                     qv_val = float(qv_item.get('latest', 0))
-                    # 🚨 修复：QVeris 的 changeRatio 是小数格式（0.0531 表示 5.31%），需要*100
-                    qv_pct = float(qv_item.get('changeRatio', 0)) * 100
+                    qv_pct = float(qv_item.get('changeRatio', 0))
             except:
                 pass
         
