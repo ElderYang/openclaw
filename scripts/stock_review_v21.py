@@ -870,9 +870,10 @@ def get_holdings_data():
             mx_data = mx_etf_data[code]
             results.append({'name': stock['name'], 'code': code, 'price': mx_data['price'], 'pct': mx_data['pct'], 'source': mx_data['source'], 'validated': True, 'industry': stock['industry']})
         else:
-            # 四源校验（优先使用 QVeris 实时数据）
-            # ETF 也加入校验（如果 mx 失败）
-            sources = [(qv_val, qv_pct, qv_src), (ak_val, ak_pct, ak_src), (ts_val, ts_pct, ts_src), (em_val, em_pct, em_src)]
+            # 四源校验（优先使用 Tushare 昨日收盘数据）
+            # 🚨 修复：早盘时段（9:30 前）QVeris 返回昨日收盘价，changeRatio=0，不应该优先使用
+            # 正确优先级：Tushare（昨日收盘）> QVeris（盘中实时）> AkShare > 东方财富
+            sources = [(ts_val, ts_pct, ts_src), (qv_val, qv_pct, qv_src), (ak_val, ak_pct, ak_src), (em_val, em_pct, em_src)]
             valid_sources = [(v, p, s) for v, p, s in sources if v is not None]
             
             if len(valid_sources) >= 1:  # ETF 只要有 1 个源就使用
